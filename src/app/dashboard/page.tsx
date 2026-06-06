@@ -210,7 +210,7 @@ function ChartCard({ title, icon, children }: { title: string; icon: string; chi
       <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
         <span aria-hidden="true">{icon}</span> {title}
       </h3>
-      <div role="img" aria-label={title}>
+      <div role="img" aria-label={title} className="w-full h-[200px]">
         {children}
       </div>
     </div>

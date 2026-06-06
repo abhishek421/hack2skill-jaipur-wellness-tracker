@@ -134,6 +134,7 @@ export default function WeeklySummaryPage() {
               <div
                 role="img"
                 aria-label={`Wellness balance radar chart: Mood ${summary.avgMood.toFixed(1)}, Energy ${summary.avgEnergy.toFixed(1)}, Calm ${(6 - summary.avgStress).toFixed(1)} out of 5`}
+                className="w-full h-[220px]"
               >
               <ResponsiveContainer width="100%" height={220}>
                 <RadarChart data={radarData}>

@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="flex flex-col md:flex-row w-full max-w-5xl bg-white/60 backdrop-blur-2xl border border-white/60 shadow-[0_8px_30px_rgb(59,130,246,0.15)] rounded-3xl overflow-hidden">
         
         {/* Left side: Banner image */}
-        <div className="hidden md:flex w-1/2 relative bg-[#E0F2FE]">
+        <div className="hidden md:flex w-1/2 relative bg-transparent items-center justify-center p-6">
           <Image
             src={bannerImg}
             alt="MindTrack Wellness Concept"

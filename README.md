@@ -2,7 +2,7 @@
 
 **MindTrack** is a lightweight, responsive mental wellness tracker designed to help students monitor and improve their emotional well-being during high-pressure periods such as board exams, competitive entrance tests, and results seasons (NEET, JEE, CUET, CAT, GATE, UPSC, etc.).
 
-By adopting a **Track → Understand → Improve** loop, MindTrack empowers students to build emotional self-awareness, identify stress triggers, log reflections, and receive actionable, rule-based daily recommendations.
+By adopting a **Track → Understand → Improve** loop, MindTrack empowers students to build emotional self-awareness, identify stress triggers, log reflections, and receive actionable daily recommendations.
 
 ---
 
@@ -18,12 +18,12 @@ A structured, step-by-step form capturing:
 ### 2. Rule-Based Insights & Recommendation Engines
 Immediately upon check-in completion, the app runs local analysis engines to generate:
 - **Personalized Insights**: Contextual observations based on current entries and historical check-in trends (e.g., detecting monotonic mood drops, low energy trends, or recurring stress triggers).
-- **Daily Recommended Actions**: Simple, actionable, and non-clinical tasks (e.g., deep breathing, breaking study goals, screen-free periods, ormastery reviews) designed to fit into a student's daily routine without guilt. Includes anti-repetition logic to avoid repeating recommendations within a 3-day window.
+- **Daily Recommended Actions**: Simple, actionable, and non-clinical tasks designed to fit into a student's daily routine without guilt. Includes anti-repetition logic to avoid repeating recommendations within a 3-day window.
 
 ### 3. Historical Analytics Dashboard
 A visual control center to review mental health trends over time:
 - **Stat Cards**: Live indicators for current mood, current streak (consecutive days), latest stress level, and latest energy level.
-- **Mood & Stress Trend**: Interactive Recharts line graph displaying historical trajectories over custom periods (7, 14, or 30 days).
+- **Mood & Stress Trend**: Interactive Recharts area chart displaying historical trajectories over custom periods (7, 14, or 30 days).
 - **Top Stress Triggers**: Dynamic bar chart showing the frequency of stress triggers.
 - **Recent Wellness Actions**: Timeline logging recommended actions alongside their generation dates.
 
@@ -31,7 +31,7 @@ A visual control center to review mental health trends over time:
 A weekly emotional synthesis compiling:
 - **7-day average metrics** for Mood, Stress, and Energy.
 - **Consistency analysis** tracking overall check-in count.
-- **Weekly Narrative**: A synthesis summarizing the week's emotional highlights.
+- **AI-Generated Weekly Narrative**: A personalized, empathetic paragraph written by an LLM that reads the student's full week of data — mood trends, top triggers, and journal themes — and produces a human-quality reflection. Falls back to a rule-based narrative if the AI call fails.
 - **Wellness Balance Radar Chart**: Map showing the balance between Mood, Energy, and Calmness.
 
 ---
@@ -39,8 +39,9 @@ A weekly emotional synthesis compiling:
 ## 🛠 Tech Stack
 
 - **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS, Recharts, Lucide Icons.
-- **Backend & APIs**: Next.js Server Components, Next.js API routes.
+- **Backend & APIs**: Next.js API Routes, Next.js Server Components.
 - **Database & Auth**: Supabase PostgreSQL, Supabase SSR/Client Auth, Row Level Security (RLS) policies.
+- **AI**: OpenAI API (`gpt-4o-mini`) for weekly narrative generation via `openai` SDK.
 
 ---
 
@@ -56,17 +57,17 @@ A weekly emotional synthesis compiling:
 │   │   ├── checkin/           # Step-by-step wellness check-in form
 │   │   ├── dashboard/         # Visual metrics analytics panel
 │   │   ├── weekly-summary/    # Weekly report generation & Radar chart
-│   │   ├── layout.tsx         # Global layouts
+│   │   ├── layout.tsx         # Global layout
 │   │   └── page.tsx           # Session redirect root
-│   ├── components/            # UI components
 │   ├── lib/
+│   │   ├── ai/                # AI narrative generation (generateWeeklyNarrative)
 │   │   ├── engines/           # Rule-based insight & recommendation engines
 │   │   ├── supabase/          # Supabase client/server initializers
 │   │   └── types.ts           # Shared TypeScript interfaces
-│   └── middleware.ts          # Authentication router guard
+│   └── proxy.ts               # Authentication route guard
 ├── supabase/                  # Local Supabase configurations
 ├── supabase-schema.sql        # Database schema script
-└── flow.md                    # Detailed User Flow & E2E Testing specification
+└── flow.md                    # Detailed user flow & E2E testing specification
 ```
 
 ---
@@ -77,34 +78,65 @@ A weekly emotional synthesis compiling:
 - Node.js (v18.x or later)
 - NPM, Yarn, or PNPM
 - A Supabase account and project
+- An OpenAI API key (for AI weekly narrative; optional — falls back to rule-based if absent)
 
 ### 1. Database Configuration
-Execute the contents of [supabase-schema.sql](file:///Users/abhi/Documents/hack2skill/supabase-schema.sql) in your Supabase SQL Editor. This sets up the following PostgreSQL tables with Row Level Security (RLS) policies:
+Execute the contents of `supabase-schema.sql` in your Supabase SQL Editor. This sets up the following PostgreSQL tables with Row Level Security (RLS) policies:
 - `check_ins` — Records daily mood, stress, and energy details.
 - `triggers` — Logs stress triggers corresponding to a check-in.
 - `reflections` — Holds private journal content.
 - `wellness_actions` — Stores generated insights and recommendations.
 
 ### 2. Local Configuration
-Clone the repository and install the project dependencies:
+Clone the repository and install dependencies:
 ```bash
 npm install
 ```
 
-Create a `.env.local` file in the root directory and add your Supabase credentials:
+Create a `.env.local` file in the root directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# Optional — AI weekly narrative. Falls back to rule-based if not set.
+OPENAI_API_KEY=sk-...
+NARRATIVE_MODEL=gpt-4o-mini
 ```
 
 ### 3. Run Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your web browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🧪 Testing & User Journeys
+## 🧪 Testing
 
-For a comprehensive, step-by-step breakdown of user flows, interface selectors, API request payloads, and testing assertions, refer to the **[flow.md](file:///Users/abhi/Documents/hack2skill/flow.md)** specification file.
+### Run All Tests
+```bash
+npm test
+```
+
+### Watch Mode
+```bash
+npm run test:watch
+```
+
+### Lint
+```bash
+npm run lint
+```
+
+### Test Coverage
+Unit and integration tests live alongside their modules in `__tests__/` directories:
+
+| Test file | What it covers |
+|-----------|----------------|
+| `src/lib/engines/__tests__/insight.test.ts` | Insight engine — trigger detection, trend analysis |
+| `src/lib/engines/__tests__/recommendation.test.ts` | Recommendation engine — rule matching, anti-repetition |
+| `src/app/api/checkin/__tests__/route.test.ts` | Check-in API — payload validation, DB writes |
+| `src/app/api/dashboard/__tests__/route.test.ts` | Dashboard API — aggregation, streak calculation |
+| `src/app/api/weekly-summary/__tests__/route.test.ts` | Weekly summary API — metric computation, narrative |
+
+For a full breakdown of user flows, interface selectors, API payloads, and manual testing assertions, see **[flow.md](./flow.md)**.
