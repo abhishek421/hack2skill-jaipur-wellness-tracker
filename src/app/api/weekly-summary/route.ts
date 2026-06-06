@@ -1,53 +1,49 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { MOOD_LABELS } from '@/lib/types'
+import { generateWeeklyNarrative } from '@/lib/ai/generateWeeklyNarrative'
+import type { WeeklyNarrativeInput, TrendDirection } from '@/lib/ai/generateWeeklyNarrative'
 
-export async function GET() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-
-  const { data: checkIns } = await supabase
-    .from('check_ins')
-    .select('*')
-    .eq('user_id', user.id)
-    .gte('created_at', weekAgo)
-    .order('created_at', { ascending: true })
-
-  if (!checkIns || checkIns.length === 0) {
-    return NextResponse.json({ empty: true })
+function slope(values: number[]): number {
+  const n = values.length
+  if (n < 2) return 0
+  const meanX = (n - 1) / 2
+  const meanY = values.reduce((a, b) => a + b, 0) / n
+  let num = 0, den = 0
+  for (let i = 0; i < n; i++) {
+    num += (i - meanX) * (values[i] - meanY)
+    den += (i - meanX) ** 2
   }
+  return den === 0 ? 0 : num / den
+}
 
-  const { data: triggers } = await supabase
-    .from('triggers')
-    .select('trigger_name')
-    .in('check_in_id', checkIns.map((c: { id: string }) => c.id))
+function trend(values: number[]): TrendDirection {
+  if (values.length < 2) return 'stable'
+  const s = slope(values)
+  const variance = values.reduce((acc, v) => {
+    const mean = values.reduce((a, b) => a + b, 0) / values.length
+    return acc + (v - mean) ** 2
+  }, 0) / values.length
+  if (variance > 1.2) return 'volatile'
+  if (s > 0.15) return 'improving'
+  if (s < -0.15) return 'declining'
+  return 'stable'
+}
 
-  const avgMood = checkIns.reduce((s: number, c: { mood: number }) => s + c.mood, 0) / checkIns.length
-  const avgStress = checkIns.reduce((s: number, c: { stress_level: number }) => s + c.stress_level, 0) / checkIns.length
-  const avgEnergy = checkIns.reduce((s: number, c: { energy_level: number }) => s + c.energy_level, 0) / checkIns.length
-
-  const triggerCounts: Record<string, number> = {}
-  ;(triggers || []).forEach((t: { trigger_name: string }) => {
-    triggerCounts[t.trigger_name] = (triggerCounts[t.trigger_name] || 0) + 1
-  })
-  const topTrigger = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None'
-
+function ruleBased(
+  checkInCount: number,
+  topTrigger: string,
+  avgMood: number,
+  avgStress: number,
+  avgEnergy: number,
+  moodValues: number[]
+): string {
   const moodLabel = MOOD_LABELS[Math.round(avgMood) as 1 | 2 | 3 | 4 | 5]
-
-  const moodTrend = checkIns.slice(-3).map((c: { mood: number }) => c.mood)
+  const moodTrend = moodValues.slice(-3)
   const moodDeclining = moodTrend.length >= 2 && moodTrend[moodTrend.length - 1] < moodTrend[0]
-  const energyLow = avgEnergy < 2.5
 
-  let narrative = `This week, you completed ${checkIns.length} check-in${checkIns.length !== 1 ? 's' : ''}. `
-
-  if (topTrigger !== 'None') {
-    narrative += `${topTrigger} was your most common source of stress. `
-  }
-
+  let narrative = `This week, you completed ${checkInCount} check-in${checkInCount !== 1 ? 's' : ''}. `
+  if (topTrigger !== 'None') narrative += `${topTrigger} was your most common source of stress. `
   if (moodDeclining) {
     narrative += 'Your mood dipped toward the end of the week — rest and small wins may help. '
   } else if (avgMood >= 4) {
@@ -55,13 +51,141 @@ export async function GET() {
   } else {
     narrative += `Your overall mood was ${moodLabel.toLowerCase()}. `
   }
-
-  if (energyLow) {
+  if (avgEnergy < 2.5) {
     narrative += 'Energy was low this week, so prioritizing sleep and breaks would be beneficial.'
   } else if (avgStress > 3.5) {
     narrative += 'Stress levels were high — consider breaking your study sessions into shorter focused blocks.'
   } else {
     narrative += 'Keep tracking your emotions to build stronger self-awareness over time.'
+  }
+  return narrative.trim()
+}
+
+export async function GET() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const now = new Date()
+  const dayOfWeek = now.getUTCDay()
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStart = new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysFromMonday
+  ))
+  const weekStartISO = weekStart.toISOString()
+  const weekStartDate = weekStart.toISOString().split('T')[0]
+  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const isClosed = now >= weekEnd
+
+  const { data: checkIns } = await supabase
+    .from('check_ins')
+    .select('*')
+    .eq('user_id', user.id)
+    .gte('created_at', weekStartISO)
+    .order('created_at', { ascending: true })
+
+  if (!checkIns || checkIns.length === 0) {
+    return NextResponse.json({ empty: true })
+  }
+
+  const [{ data: triggers }, { data: reflections }] = await Promise.all([
+    supabase
+      .from('triggers')
+      .select('trigger_name')
+      .in('check_in_id', checkIns.map((c: { id: string }) => c.id)),
+    supabase
+      .from('reflections')
+      .select('content, check_in_id')
+      .in('check_in_id', checkIns.map((c: { id: string }) => c.id))
+      .order('check_in_id', { ascending: false })
+      .limit(3),
+  ])
+
+  const avgMood = checkIns.reduce((s: number, c: { mood: number }) => s + c.mood, 0) / checkIns.length
+  const avgStress = checkIns.reduce((s: number, c: { stress_level: number }) => s + c.stress_level, 0) / checkIns.length
+  const avgEnergy = checkIns.reduce((s: number, c: { energy_level: number }) => s + c.energy_level, 0) / checkIns.length
+
+  const moodValues = checkIns.map((c: { mood: number }) => c.mood)
+  const stressValues = checkIns.map((c: { stress_level: number }) => c.stress_level)
+
+  const triggerCounts: Record<string, number> = {}
+  ;(triggers || []).forEach((t: { trigger_name: string }) => {
+    triggerCounts[t.trigger_name] = (triggerCounts[t.trigger_name] || 0) + 1
+  })
+  const sortedTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1])
+  const topTrigger = sortedTriggers[0]?.[0] || 'None'
+  const topTriggers = sortedTriggers.slice(0, 3).map(([name]) => name)
+
+  const moodByDay = checkIns.reduce((acc: Record<string, number>, c: { created_at: string; mood: number }) => {
+    const day = c.created_at.split('T')[0]
+    if (!acc[day] || c.mood < acc[day]) acc[day] = c.mood
+    return acc
+  }, {} as Record<string, number>)
+  const moodEntries = Object.entries(moodByDay) as [string, number][]
+  const lowestMoodDay = moodEntries.length ? moodEntries.reduce((a, b) => a[1] < b[1] ? a : b)[0] : null
+  const highestMoodDay = moodEntries.length ? moodEntries.reduce((a, b) => a[1] > b[1] ? a : b)[0] : null
+
+  const fallback = ruleBased(checkIns.length, topTrigger, avgMood, avgStress, avgEnergy, moodValues)
+
+  // Check cache for closed weeks
+  if (isClosed) {
+    const { data: cached } = await supabase
+      .from('weekly_summaries')
+      .select('narrative, source')
+      .eq('user_id', user.id)
+      .eq('week_start', weekStartDate)
+      .maybeSingle()
+
+    if (cached) {
+      return NextResponse.json({
+        avgMood: Math.round(avgMood * 10) / 10,
+        avgStress: Math.round(avgStress * 10) / 10,
+        avgEnergy: Math.round(avgEnergy * 10) / 10,
+        topTrigger,
+        checkInCount: checkIns.length,
+        narrative: cached.narrative,
+        narrativeSource: cached.source,
+      })
+    }
+  }
+
+  const studentName = (user.user_metadata?.name as string | undefined) ?? 'Student'
+  const firstName = studentName.split(' ')[0]
+
+  const narrativeInput: WeeklyNarrativeInput = {
+    studentName: firstName,
+    weekStartDate,
+    checkInCount: checkIns.length,
+    averageMood: Math.round(avgMood * 10) / 10,
+    averageStress: Math.round(avgStress * 10) / 10,
+    averageEnergy: Math.round(avgEnergy * 10) / 10,
+    moodTrend: trend(moodValues),
+    stressTrend: trend(stressValues),
+    topTriggers: topTriggers.length ? topTriggers : ['None'],
+    triggerFrequency: triggerCounts,
+    reflectionSnippets: (reflections || []).map((r: { content: string }) => r.content),
+    lowestMoodDay,
+    highestMoodDay,
+  }
+
+  let narrative = fallback
+  let narrativeSource: 'ai' | 'rule-based' = 'rule-based'
+
+  try {
+    narrative = await generateWeeklyNarrative(narrativeInput)
+    narrativeSource = 'ai'
+
+    if (isClosed) {
+      await supabase.from('weekly_summaries').upsert({
+        user_id: user.id,
+        week_start: weekStartDate,
+        narrative,
+        source: narrativeSource,
+      })
+    }
+  } catch (err) {
+    console.error('[weekly-summary] LLM error, using fallback:', err)
   }
 
   return NextResponse.json({
@@ -70,6 +194,7 @@ export async function GET() {
     avgEnergy: Math.round(avgEnergy * 10) / 10,
     topTrigger,
     checkInCount: checkIns.length,
-    narrative: narrative.trim(),
+    narrative,
+    narrativeSource,
   })
 }

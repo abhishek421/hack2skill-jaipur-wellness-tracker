@@ -61,31 +61,38 @@ export default function CheckInPage() {
   const progress = ((stepIndex) / 3) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF] flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         {step !== 'result' && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">
+              <span className="text-sm font-medium text-slate-600">
                 Step {stepIndex + 1} of 3
               </span>
               <button
                 onClick={() => router.push('/dashboard')}
-                className="text-sm text-gray-400 hover:text-gray-600"
+                className="text-sm text-slate-400 hover:text-slate-600"
               >
                 ✕ Cancel
               </button>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="w-full bg-white/50 backdrop-blur-sm border border-white/60 rounded-full h-2 shadow-inner"
+              role="progressbar"
+              aria-valuenow={stepIndex + 1}
+              aria-valuemin={1}
+              aria-valuemax={3}
+              aria-label={`Step ${stepIndex + 1} of 3`}
+            >
               <div
-                className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                className="bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] h-2 rounded-full transition-all duration-500"
                 style={{ width: `${((stepIndex + 1) / 3) * 100}%` }}
               />
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(59,130,246,0.1)] p-8 border border-white/60">
           {step === 'mood' && (
             <MoodStep
               mood={mood}
@@ -143,22 +150,24 @@ function MoodStep({
   const moods: Mood[] = [1, 2, 3, 4, 5]
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-1">How are you feeling?</h2>
-      <p className="text-gray-500 mb-6">Select your current mood</p>
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">How are you feeling?</h2>
+      <p className="text-slate-500 mb-6">Select your current mood</p>
 
       <div className="flex justify-between mb-8">
         {moods.map((m) => (
           <button
             key={m}
             onClick={() => setMood(m)}
-            className={`flex flex-col items-center p-3 rounded-xl transition-all ${
+            aria-pressed={mood === m}
+            aria-label={MOOD_LABELS[m]}
+            className={`flex flex-col items-center p-3 rounded-2xl transition-all shadow-sm ${
               mood === m
-                ? 'bg-indigo-50 border-2 border-indigo-500 scale-110'
-                : 'border-2 border-transparent hover:bg-gray-50'
+                ? 'bg-white/90 border-2 border-blue-500 shadow-[0_8px_30px_rgb(59,130,246,0.2)] scale-110'
+                : 'bg-white/50 backdrop-blur-sm border-2 border-white/60 hover:bg-white/70'
             }`}
           >
             <span className="text-3xl">{MOOD_EMOJIS[m]}</span>
-            <span className="text-xs mt-1 text-gray-600 text-center leading-tight">
+            <span className="text-xs mt-1 text-slate-600 text-center leading-tight">
               {MOOD_LABELS[m].replace(' ', '\n')}
             </span>
           </button>
@@ -172,7 +181,6 @@ function MoodStep({
           onChange={setStress}
           low="Calm"
           high="Very Stressed"
-          color="red"
         />
         <SliderField
           label="Energy Level"
@@ -180,14 +188,13 @@ function MoodStep({
           onChange={setEnergy}
           low="Exhausted"
           high="Energized"
-          color="green"
         />
       </div>
 
       <button
         onClick={onNext}
         disabled={!mood}
-        className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:from-indigo-600 hover:to-purple-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full py-3 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-500/30"
       >
         Continue →
       </button>
@@ -196,33 +203,37 @@ function MoodStep({
 }
 
 function SliderField({
-  label, value, onChange, low, high, color,
+  label, value, onChange, low, high,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
   low: string
   high: string
-  color: 'red' | 'green'
 }) {
-  const trackColor = color === 'red' ? 'accent-red-500' : 'accent-green-500'
+  const id = `slider-${label.toLowerCase().replace(/\s+/g, '-')}`
   return (
     <div>
       <div className="flex justify-between mb-1">
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-        <span className={`text-sm font-bold ${color === 'red' ? 'text-red-600' : 'text-green-600'}`}>
+        <label htmlFor={id} className="text-sm font-medium text-slate-700">{label}</label>
+        <span aria-hidden="true" className="text-sm font-bold text-blue-600">
           {value}/5
         </span>
       </div>
       <input
+        id={id}
         type="range"
         min={1}
         max={5}
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${trackColor} bg-gray-200`}
+        aria-label={`${label}: ${value} out of 5`}
+        aria-valuemin={1}
+        aria-valuemax={5}
+        aria-valuenow={value}
+        className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-500 bg-white/50 backdrop-blur-sm border border-white/60 shadow-inner"
       />
-      <div className="flex justify-between text-xs text-gray-400 mt-1">
+      <div className="flex justify-between text-xs text-slate-400 mt-1" aria-hidden="true">
         <span>{low}</span>
         <span>{high}</span>
       </div>
@@ -238,24 +249,36 @@ function TriggersStep({
   onBack: () => void
   onNext: () => void
 }) {
+  const [customText, setCustomText] = useState('')
+  const [customAdded, setCustomAdded] = useState(false)
+
+  function addCustom() {
+    const text = customText.trim()
+    if (!text) return
+    toggle(`Other: ${text}`)
+    setCustomAdded(true)
+    setCustomText('')
+  }
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-1">What&apos;s weighing on you?</h2>
-      <p className="text-gray-500 mb-6">Select all that apply (optional)</p>
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">What&apos;s weighing on you?</h2>
+      <p className="text-slate-500 mb-6">Select all that apply (optional)</p>
 
-      <div className="space-y-4 mb-8 max-h-72 overflow-y-auto pr-1">
-        {Object.entries(TRIGGERS).map(([category, items]) => (
+      <div className="space-y-4 mb-4 max-h-64 overflow-y-auto pr-1">
+        {Object.entries(TRIGGERS).filter(([cat]) => cat !== 'Other').map(([category, items]) => (
           <div key={category}>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{category}</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">{category}</p>
             <div className="flex flex-wrap gap-2">
               {(items as readonly string[]).map((item) => (
                 <button
                   key={item}
                   onClick={() => toggle(item)}
-                  className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+                  aria-pressed={selected.includes(item)}
+                  className={`px-3 py-1.5 rounded-full text-sm transition-all border ${
                     selected.includes(item)
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 border-blue-500'
+                      : 'bg-white/50 backdrop-blur-sm text-slate-700 hover:bg-white/70 border-white/60 shadow-sm'
                   }`}
                 >
                   {item}
@@ -266,16 +289,53 @@ function TriggersStep({
         ))}
       </div>
 
+      {/* Custom trigger input */}
+      <div className="mb-6">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Other</p>
+        <div className="flex gap-2">
+          <label htmlFor="custom-trigger-input" className="sr-only">Describe another trigger</label>
+          <input
+            id="custom-trigger-input"
+            type="text"
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+            placeholder="Describe another trigger..."
+            maxLength={80}
+            className="flex-1 px-3 py-2 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 shadow-sm"
+          />
+          <button
+            onClick={addCustom}
+            disabled={!customText.trim()}
+            className="px-4 py-2 rounded-xl bg-blue-100/50 backdrop-blur-sm text-blue-700 text-sm font-medium hover:bg-blue-100 border border-white/60 disabled:opacity-40 transition shadow-sm"
+          >
+            Add
+          </button>
+        </div>
+        {selected.filter((t) => t.startsWith('Other: ')).map((t) => (
+          <div key={t} className="mt-2 flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-blue-500 text-white text-sm shadow-sm">{t.replace('Other: ', '')}</span>
+            <button
+              onClick={() => toggle(t)}
+              aria-label={`Remove trigger: ${t.replace('Other: ', '')}`}
+              className="text-slate-400 hover:text-red-500 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition"
+          className="flex-1 py-3 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 text-slate-600 font-medium hover:bg-white/70 transition shadow-sm"
         >
           ← Back
         </button>
         <button
           onClick={onNext}
-          className="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:from-indigo-600 hover:to-purple-700 transition"
+          className="flex-1 py-3 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30"
         >
           Continue →
         </button>
@@ -296,21 +356,28 @@ function ReflectionStep({
 }) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-1">Reflect on your day</h2>
-      <p className="text-gray-500 mb-6">Write freely — this is just for you (optional)</p>
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">Reflect on your day</h2>
+      <p className="text-slate-500 mb-6">Write freely — this is just for you (optional)</p>
 
+      <label htmlFor="reflection-text" className="sr-only">Reflection journal</label>
       <textarea
+        id="reflection-text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         maxLength={1000}
         rows={5}
         placeholder="What's on your mind? How did today feel? Any wins or challenges..."
-        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-gray-800 resize-none mb-2"
+        aria-describedby="reflection-char-count"
+        className="w-full px-4 py-3 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-slate-800 resize-none mb-2 shadow-sm"
       />
-      <p className="text-xs text-gray-400 text-right mb-6">{value.length}/1000</p>
+      <p id="reflection-char-count" className="text-xs text-slate-400 text-right mb-6">{value.length}/1000</p>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"
+        >
           {error}
         </div>
       )}
@@ -318,14 +385,14 @@ function ReflectionStep({
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition"
+          className="flex-1 py-3 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 text-slate-600 font-medium hover:bg-white/70 transition shadow-sm"
         >
           ← Back
         </button>
         <button
           onClick={onSubmit}
           disabled={loading}
-          className="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:from-indigo-600 hover:to-purple-700 transition disabled:opacity-60"
+          className="flex-1 py-3 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 transition disabled:opacity-60 shadow-lg shadow-blue-500/30"
         >
           {loading ? 'Saving...' : '✓ Complete'}
         </button>
@@ -345,32 +412,32 @@ function ResultStep({
   return (
     <div className="text-center">
       <div className="text-6xl mb-4">{MOOD_EMOJIS[mood]}</div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-1">Check-in complete!</h2>
-      <p className="text-gray-500 mb-8">Here&apos;s your personalized wellness insight</p>
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">Check-in complete!</h2>
+      <p className="text-slate-500 mb-8">Here&apos;s your personalized wellness insight</p>
 
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-5 mb-4 text-left border border-indigo-100">
+      <div className="bg-white/50 backdrop-blur-sm rounded-xl p-5 mb-4 text-left border border-white/60 shadow-sm">
         <div className="flex items-start gap-3">
           <span className="text-xl">💡</span>
           <div>
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Today&apos;s Insight</p>
-            <p className="text-gray-700 leading-relaxed">{insight}</p>
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Today&apos;s Insight</p>
+            <p className="text-slate-700 leading-relaxed">{insight}</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 mb-8 text-left border border-green-100">
+      <div className="bg-white/50 backdrop-blur-sm rounded-xl p-5 mb-8 text-left border border-white/60 shadow-sm">
         <div className="flex items-start gap-3">
           <span className="text-xl">🎯</span>
           <div>
-            <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">Recommended Action</p>
-            <p className="text-gray-700 leading-relaxed">{recommendation}</p>
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Recommended Action</p>
+            <p className="text-slate-700 leading-relaxed">{recommendation}</p>
           </div>
         </div>
       </div>
 
       <button
         onClick={onDone}
-        className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:from-indigo-600 hover:to-purple-700 transition"
+        className="w-full py-3 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30"
       >
         View Dashboard →
       </button>

@@ -8,8 +8,17 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const days = parseInt(searchParams.get('days') || '7')
+  const rawDays = parseInt(searchParams.get('days') || '7')
+  const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 90) : 7
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: windowCheckInIds } = await supabase
+    .from('check_ins')
+    .select('id')
+    .eq('user_id', user.id)
+    .gte('created_at', since)
+
+  const ids = (windowCheckInIds || []).map((c: { id: string }) => c.id)
 
   const [checkInsResult, triggersResult, actionsResult, allCheckInsResult] = await Promise.all([
     supabase
@@ -21,15 +30,7 @@ export async function GET(request: NextRequest) {
     supabase
       .from('triggers')
       .select('trigger_name, check_in_id')
-      .in(
-        'check_in_id',
-        await supabase
-          .from('check_ins')
-          .select('id')
-          .eq('user_id', user.id)
-          .gte('created_at', since)
-          .then(({ data }) => (data || []).map((c: { id: string }) => c.id))
-      ),
+      .in('check_in_id', ids),
     supabase
       .from('wellness_actions')
       .select('*')

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Cell,
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
@@ -45,30 +45,30 @@ export default function DashboardPage() {
   const latestMood = data?.moodTrend?.slice(-1)[0]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF]">
       {/* Nav */}
-      <nav className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-100 px-6 py-3">
+      <nav className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-white/60 px-6 py-3 shadow-[0_8px_30px_rgb(59,130,246,0.05)]">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">🧘</span>
-            <span className="font-bold text-gray-900 text-lg">MindTrack</span>
+            <span className="font-bold text-slate-900 text-lg">MindTrack</span>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/weekly-summary')}
-              className="text-sm text-gray-600 hover:text-indigo-600 font-medium transition"
+              className="text-sm text-slate-600 hover:text-blue-600 font-medium transition"
             >
               Weekly Summary
             </button>
             <button
               onClick={() => router.push('/checkin')}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-semibold hover:from-indigo-600 hover:to-purple-700 transition shadow-sm"
+              className="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30"
             >
               + Check In
             </button>
             <button
               onClick={signOut}
-              className="text-sm text-gray-400 hover:text-gray-600 transition"
+              className="text-sm text-slate-400 hover:text-slate-600 transition"
             >
               Sign out
             </button>
@@ -79,10 +79,10 @@ export default function DashboardPage() {
       <div className="max-w-5xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-slate-900">
             Hello, {userName} 👋
           </h1>
-          <p className="text-gray-500 mt-1">Here&apos;s how you&apos;ve been feeling lately</p>
+          <p className="text-slate-500 mt-1">Here&apos;s how you&apos;ve been feeling lately</p>
         </div>
 
         {/* Stats Row */}
@@ -91,25 +91,21 @@ export default function DashboardPage() {
             label="Current Mood"
             value={latestMood ? `${MOOD_EMOJIS[latestMood.mood as 1|2|3|4|5]}` : '—'}
             sub={latestMood ? MOOD_LABELS[latestMood.mood as 1|2|3|4|5] : 'No check-ins yet'}
-            bg="from-indigo-500 to-purple-600"
           />
           <StatCard
             label="Streak"
             value={`${data?.streakDays ?? 0}`}
             sub="consecutive days"
-            bg="from-orange-400 to-pink-500"
           />
           <StatCard
             label="Latest Stress"
             value={latestMood ? `${latestMood.stress}/5` : '—'}
             sub={(latestMood?.stress ?? 0) >= 4 ? 'High — take breaks' : 'Under control'}
-            bg="from-red-400 to-rose-500"
           />
           <StatCard
             label="Latest Energy"
             value={latestMood ? `${latestMood.energy}/5` : '—'}
             sub={(latestMood?.energy ?? 5) <= 2 ? 'Low — rest up' : 'Good energy'}
-            bg="from-emerald-400 to-teal-500"
           />
         </div>
 
@@ -121,8 +117,8 @@ export default function DashboardPage() {
               onClick={() => setDays(d)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
                 days === d
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white/50 backdrop-blur-md text-slate-600 hover:bg-white/70 border border-white/60 shadow-sm'
               }`}
             >
               {d} days
@@ -141,15 +137,29 @@ export default function DashboardPage() {
               <div className="grid md:grid-cols-2 gap-6">
                 <ChartCard title="Mood & Stress Trend" icon="📈">
                   <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={data.moodTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                      <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="mood" stroke="#6366f1" strokeWidth={2} dot={{ r: 4 }} name="Mood" />
-                      <Line type="monotone" dataKey="stress" stroke="#f43f5e" strokeWidth={2} dot={{ r: 4 }} name="Stress" />
-                      <Line type="monotone" dataKey="energy" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} name="Energy" />
-                    </LineChart>
+                    <AreaChart data={data.moodTrend}>
+                      <defs>
+                        <linearGradient id="colorMood" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorStress" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#06B6D4" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#06B6D4" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#BAE6FD" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#BAE6FD" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e0f2fe" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 8px 30px rgba(59,130,246,0.1)', color: '#0F172A' }} />
+                      <Area type="monotone" dataKey="mood" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorMood)" name="Mood" />
+                      <Area type="monotone" dataKey="stress" stroke="#06B6D4" strokeWidth={3} fillOpacity={1} fill="url(#colorStress)" name="Stress" />
+                      <Area type="monotone" dataKey="energy" stroke="#BAE6FD" strokeWidth={3} fillOpacity={1} fill="url(#colorEnergy)" name="Energy" />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </ChartCard>
 
@@ -157,10 +167,10 @@ export default function DashboardPage() {
                   <ChartCard title="Top Stress Triggers" icon="⚡">
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={data.triggerFrequency.slice(0, 6)} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis type="number" tick={{ fontSize: 11 }} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
-                        <Tooltip />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0f2fe" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#64748B' }} width={100} axisLine={false} tickLine={false} />
+                        <Tooltip cursor={{fill: 'rgba(59,130,246,0.05)'}} contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 8px 30px rgba(59,130,246,0.1)', color: '#0F172A' }} />
                         <Bar dataKey="count" name="Times" radius={[0, 4, 4, 0]}>
                           {data.triggerFrequency.slice(0, 6).map((_, i) => (
                             <Cell key={i} fill={TRIGGER_COLORS[i % TRIGGER_COLORS.length]} />
@@ -176,28 +186,7 @@ export default function DashboardPage() {
             )}
 
             {/* Recent Wellness Actions */}
-            {data?.recentActions && data.recentActions.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span>🎯</span> Recent Wellness Actions
-                </h3>
-                <div className="space-y-3">
-                  {data.recentActions.map((action, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
-                        {new Date(action.generated_at).getDate()}
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 mb-0.5">
-                          {new Date(action.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </p>
-                        <p className="text-sm text-gray-700">{action.recommendation}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {data && <RecentActionsCard actions={data.recentActions} />}
           </div>
         )}
       </div>
@@ -205,23 +194,50 @@ export default function DashboardPage() {
   )
 }
 
-function StatCard({ label, value, sub, bg }: { label: string; value: string; sub: string; bg: string }) {
+function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className={`rounded-2xl bg-gradient-to-br ${bg} p-5 text-white shadow-sm`}>
-      <p className="text-xs font-medium opacity-80 mb-1">{label}</p>
-      <p className="text-3xl font-bold">{value}</p>
-      <p className="text-xs opacity-70 mt-1">{sub}</p>
+    <div className="rounded-3xl bg-white/70 backdrop-blur-xl border border-white/60 p-5 text-slate-900 shadow-[0_8px_30px_rgb(59,130,246,0.1)] flex flex-col items-center justify-center text-center">
+      <p className="text-xs font-medium text-slate-500 mb-1">{label}</p>
+      <p className="text-4xl font-bold mb-1">{value}</p>
+      <p className="text-xs text-slate-400">{sub}</p>
     </div>
   )
 }
 
 function ChartCard({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-      <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <span>{icon}</span> {title}
+    <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(59,130,246,0.1)] p-6">
+      <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+        <span aria-hidden="true">{icon}</span> {title}
       </h3>
-      {children}
+      <div role="img" aria-label={title}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function RecentActionsCard({ actions }: { actions: Array<{ generated_at: string; recommendation: string }> }) {
+  return (
+    <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(59,130,246,0.1)] p-6">
+      <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+        <span aria-hidden="true">🎯</span> Recent Wellness Actions
+      </h3>
+      <div className="space-y-3">
+        {actions.map((action, i) => (
+          <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-white/50 border border-white/60 backdrop-blur-sm shadow-sm">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shadow-inner">
+              {new Date(action.generated_at).getDate()}
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">
+                {new Date(action.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </p>
+              <p className="text-sm text-slate-700">{action.recommendation}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -229,13 +245,13 @@ function ChartCard({ title, icon, children }: { title: string; icon: string; chi
 function EmptyState() {
   const router = useRouter()
   return (
-    <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+    <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(59,130,246,0.1)] p-12 text-center">
       <div className="text-4xl mb-3">🌱</div>
-      <h3 className="font-semibold text-gray-700 mb-1">No check-ins yet</h3>
-      <p className="text-gray-400 text-sm mb-4">Start tracking to see your wellness trends</p>
+      <h3 className="font-semibold text-slate-700 mb-1">No check-ins yet</h3>
+      <p className="text-slate-500 text-sm mb-4">Start tracking to see your wellness trends</p>
       <button
         onClick={() => router.push('/checkin')}
-        className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-semibold hover:from-indigo-600 hover:to-purple-700 transition"
+        className="px-6 py-2.5 rounded-2xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition shadow-lg shadow-blue-500/30"
       >
         Start your first check-in
       </button>

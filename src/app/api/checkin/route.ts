@@ -16,6 +16,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  if (!Number.isInteger(mood) || mood < 1 || mood > 5) {
+    return NextResponse.json({ error: 'mood must be an integer between 1 and 5' }, { status: 400 })
+  }
+  if (!Number.isInteger(stressLevel) || stressLevel < 1 || stressLevel > 5) {
+    return NextResponse.json({ error: 'stressLevel must be an integer between 1 and 5' }, { status: 400 })
+  }
+  if (!Number.isInteger(energyLevel) || energyLevel < 1 || energyLevel > 5) {
+    return NextResponse.json({ error: 'energyLevel must be an integer between 1 and 5' }, { status: 400 })
+  }
+  if (triggers !== undefined && (!Array.isArray(triggers) || triggers.length > 20 || triggers.some((t: unknown) => typeof t !== 'string' || t.length > 100))) {
+    return NextResponse.json({ error: 'Invalid triggers' }, { status: 400 })
+  }
+  if (reflection !== undefined && typeof reflection === 'string' && reflection.length > 1000) {
+    return NextResponse.json({ error: 'reflection must be 1000 characters or fewer' }, { status: 400 })
+  }
+
   // Create check-in
   const { data: checkIn, error: checkInError } = await supabase
     .from('check_ins')
