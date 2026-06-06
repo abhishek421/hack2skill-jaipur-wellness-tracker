@@ -72,6 +72,19 @@ A weekly emotional synthesis compiling:
 
 ---
 
+## ♿ Accessibility
+
+MindTrack is built with WCAG 2.1 AA compliance in mind:
+
+- **Semantic ARIA roles** — progress bar (`role="progressbar"` with `aria-valuenow/min/max`), chart wrappers (`role="img"` with descriptive `aria-label`), and error regions (`role="alert"` with `aria-live="polite"`) throughout.
+- **Form accessibility** — all inputs use `aria-invalid` on error, `aria-describedby` linking to error messages, and `aria-busy` on submit buttons during loading.
+- **Decorative elements hidden** — all emoji icons carry `aria-hidden="true"` to avoid noise for screen reader users.
+- **Interactive state** — mood selector buttons use `aria-pressed` to communicate selected state without relying on colour alone.
+- **Slider labelling** — stress and energy sliders use `aria-label` with current value context (e.g. "Stress: 3 out of 5").
+- **Radar chart** — carries a full text alternative in `aria-label` with all three metric values for users who cannot see the chart.
+
+---
+
 ## ⚙️ Setup & Local Installation
 
 ### Prerequisites
