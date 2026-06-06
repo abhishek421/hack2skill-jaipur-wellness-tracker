@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { MOOD_LABELS } from '@/lib/types'
 import { generateWeeklyNarrative } from '@/lib/ai/generateWeeklyNarrative'
@@ -37,85 +37,29 @@ function ruleBased(
   return narrative.trim()
 }
 
-export async function GET() {
+export async function GET(request?: NextRequest) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const now = new Date()
-  const dayOfWeek = now.getUTCDay()
-  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-  const weekStart = new Date(Date.UTC(
-    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysFromMonday
-  ))
-  const weekStartISO = weekStart.toISOString()
-  const weekStartDate = weekStart.toISOString().split('T')[0]
-  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
-  const isClosed = now >= weekEnd
+  const { weekStartISO, weekStartDate, isClosed } = getWeekWindow(request)
 
-  const { data: checkIns } = await supabase
-    .from('check_ins')
-    .select('*')
-    .eq('user_id', user.id)
-    .gte('created_at', weekStartISO)
-    .order('created_at', { ascending: true })
-
+  const { checkIns, triggers, reflections } = await fetchWeeklyData(supabase, user.id, weekStartISO)
   if (!checkIns || checkIns.length === 0) {
     return NextResponse.json({ empty: true })
   }
 
-  const [{ data: triggers }, { data: reflections }] = await Promise.all([
-    supabase
-      .from('triggers')
-      .select('trigger_name')
-      .in('check_in_id', checkIns.map((c: { id: string }) => c.id)),
-    supabase
-      .from('reflections')
-      .select('content, check_in_id')
-      .in('check_in_id', checkIns.map((c: { id: string }) => c.id))
-      .order('check_in_id', { ascending: false })
-      .limit(3),
-  ])
+  const stats = calculateWeeklyStats(checkIns, triggers)
 
-  const avgMood = checkIns.reduce((s: number, c: { mood: number }) => s + c.mood, 0) / checkIns.length
-  const avgStress = checkIns.reduce((s: number, c: { stress_level: number }) => s + c.stress_level, 0) / checkIns.length
-  const avgEnergy = checkIns.reduce((s: number, c: { energy_level: number }) => s + c.energy_level, 0) / checkIns.length
-
-  const moodValues = checkIns.map((c: { mood: number }) => c.mood)
-  const stressValues = checkIns.map((c: { stress_level: number }) => c.stress_level)
-
-  const triggerCounts = countFrequency((triggers || []).map((t: { trigger_name: string }) => t.trigger_name))
-  const sortedTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1])
-  const topTrigger = sortedTriggers[0]?.[0] || 'None'
-  const topTriggers = sortedTriggers.slice(0, 3).map(([name]) => name)
-
-  const moodByDay = checkIns.reduce((acc: Record<string, number>, c: { created_at: string; mood: number }) => {
-    const day = c.created_at.split('T')[0]
-    if (!acc[day] || c.mood < acc[day]) acc[day] = c.mood
-    return acc
-  }, {} as Record<string, number>)
-  const moodEntries = Object.entries(moodByDay) as [string, number][]
-  const lowestMoodDay = moodEntries.length ? moodEntries.reduce((a, b) => a[1] < b[1] ? a : b)[0] : null
-  const highestMoodDay = moodEntries.length ? moodEntries.reduce((a, b) => a[1] > b[1] ? a : b)[0] : null
-
-  const fallback = ruleBased(checkIns.length, topTrigger, avgMood, avgStress, avgEnergy, moodValues)
-
-  // Check cache for closed weeks
   if (isClosed) {
-    const { data: cached } = await supabase
-      .from('weekly_summaries')
-      .select('narrative, source')
-      .eq('user_id', user.id)
-      .eq('week_start', weekStartDate)
-      .maybeSingle()
-
+    const cached = await getCachedSummary(supabase, user.id, weekStartDate)
     if (cached) {
       return NextResponse.json({
-        avgMood: Math.round(avgMood * 10) / 10,
-        avgStress: Math.round(avgStress * 10) / 10,
-        avgEnergy: Math.round(avgEnergy * 10) / 10,
-        topTrigger,
+        avgMood: Math.round(stats.avgMood * 10) / 10,
+        avgStress: Math.round(stats.avgStress * 10) / 10,
+        avgEnergy: Math.round(stats.avgEnergy * 10) / 10,
+        topTrigger: stats.topTrigger,
         checkInCount: checkIns.length,
         narrative: cached.narrative,
         narrativeSource: cached.source,
@@ -123,27 +67,8 @@ export async function GET() {
     }
   }
 
-  const rawName = user.user_metadata?.name
-  const studentName = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : 'Student'
-  const firstName = studentName.split(' ')[0]
-
-  const narrativeInput: WeeklyNarrativeInput = {
-    studentName: firstName,
-    weekStartDate,
-    checkInCount: checkIns.length,
-    averageMood: Math.round(avgMood * 10) / 10,
-    averageStress: Math.round(avgStress * 10) / 10,
-    averageEnergy: Math.round(avgEnergy * 10) / 10,
-    moodTrend: trend(moodValues),
-    stressTrend: trend(stressValues),
-    topTriggers: topTriggers.length ? topTriggers : ['None'],
-    triggerFrequency: triggerCounts,
-    reflectionSnippets: (reflections || []).map((r: { content: string }) => r.content),
-    lowestMoodDay,
-    highestMoodDay,
-  }
-
-  let narrative = fallback
+  const narrativeInput = buildNarrativeInput(user, weekStartDate, checkIns.length, stats, reflections)
+  let narrative = stats.fallback
   let narrativeSource: 'ai' | 'rule-based' = 'rule-based'
 
   try {
@@ -163,12 +88,143 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    avgMood: Math.round(avgMood * 10) / 10,
-    avgStress: Math.round(avgStress * 10) / 10,
-    avgEnergy: Math.round(avgEnergy * 10) / 10,
-    topTrigger,
+    avgMood: Math.round(stats.avgMood * 10) / 10,
+    avgStress: Math.round(stats.avgStress * 10) / 10,
+    avgEnergy: Math.round(stats.avgEnergy * 10) / 10,
+    topTrigger: stats.topTrigger,
     checkInCount: checkIns.length,
     narrative,
     narrativeSource,
   })
+}
+
+function getWeekWindow(request?: NextRequest) {
+  const actualNow = new Date()
+  let nowForWindow = actualNow
+  if (request) {
+    const url = new URL(request.url)
+    const dateParam = url.searchParams.get('date')
+    if (dateParam) nowForWindow = new Date(dateParam)
+  }
+
+  const dayOfWeek = nowForWindow.getUTCDay()
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStart = new Date(Date.UTC(
+    nowForWindow.getUTCFullYear(), nowForWindow.getUTCMonth(), nowForWindow.getUTCDate() - daysFromMonday
+  ))
+  const weekStartISO = weekStart.toISOString()
+  const weekStartDate = weekStart.toISOString().split('T')[0]
+  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const isClosed = actualNow >= weekEnd
+
+  return { weekStartISO, weekStartDate, isClosed }
+}
+
+async function fetchWeeklyData(supabase: any, userId: string, weekStartISO: string) {
+  const { data: checkIns } = await supabase
+    .from('check_ins')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('created_at', weekStartISO)
+    .order('created_at', { ascending: true })
+
+  if (!checkIns || checkIns.length === 0) {
+    return { checkIns: [] }
+  }
+
+  const [{ data: triggers }, { data: reflections }] = await Promise.all([
+    supabase
+      .from('triggers')
+      .select('trigger_name')
+      .in('check_in_id', checkIns.map((c: { id: string }) => c.id)),
+    supabase
+      .from('reflections')
+      .select('content, check_in_id')
+      .in('check_in_id', checkIns.map((c: { id: string }) => c.id))
+      .order('check_in_id', { ascending: false })
+      .limit(3),
+  ])
+
+  return {
+    checkIns,
+    triggers: triggers || [],
+    reflections: reflections || [],
+  }
+}
+
+function calculateWeeklyStats(checkIns: any[], triggers: any[]) {
+  const avgMood = checkIns.reduce((s: number, c: { mood: number }) => s + c.mood, 0) / checkIns.length
+  const avgStress = checkIns.reduce((s: number, c: { stress_level: number }) => s + c.stress_level, 0) / checkIns.length
+  const avgEnergy = checkIns.reduce((s: number, c: { energy_level: number }) => s + c.energy_level, 0) / checkIns.length
+
+  const moodValues = checkIns.map((c: { mood: number }) => c.mood)
+  const stressValues = checkIns.map((c: { stress_level: number }) => c.stress_level)
+
+  const triggerCounts = countFrequency(triggers.map((t: { trigger_name: string }) => t.trigger_name))
+  const sortedTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1])
+  const topTrigger = sortedTriggers[0]?.[0] || 'None'
+  const topTriggers = sortedTriggers.slice(0, 3).map(([name]) => name)
+
+  const moodByDay = checkIns.reduce((acc: Record<string, number>, c: { created_at: string; mood: number }) => {
+    const day = c.created_at.split('T')[0]
+    if (!acc[day] || c.mood < acc[day]) acc[day] = c.mood
+    return acc
+  }, {} as Record<string, number>)
+  const moodEntries = Object.entries(moodByDay) as [string, number][]
+  const lowestMoodDay = moodEntries.length ? moodEntries.reduce((a, b) => a[1] < b[1] ? a : b)[0] : null
+  const highestMoodDay = moodEntries.length ? moodEntries.reduce((a, b) => a[1] > b[1] ? a : b)[0] : null
+
+  const fallback = ruleBased(checkIns.length, topTrigger, avgMood, avgStress, avgEnergy, moodValues)
+
+  return {
+    avgMood,
+    avgStress,
+    avgEnergy,
+    moodValues,
+    stressValues,
+    triggerCounts,
+    topTrigger,
+    topTriggers,
+    lowestMoodDay,
+    highestMoodDay,
+    fallback,
+  }
+}
+
+function buildNarrativeInput(
+  user: any,
+  weekStartDate: string,
+  checkInCount: number,
+  stats: any,
+  reflections: any[]
+): WeeklyNarrativeInput {
+  const rawName = user.user_metadata?.name
+  const studentName = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : 'Student'
+  const firstName = studentName.split(' ')[0]
+
+  return {
+    studentName: firstName,
+    weekStartDate,
+    checkInCount,
+    averageMood: Math.round(stats.avgMood * 10) / 10,
+    averageStress: Math.round(stats.avgStress * 10) / 10,
+    averageEnergy: Math.round(stats.avgEnergy * 10) / 10,
+    moodTrend: trend(stats.moodValues),
+    stressTrend: trend(stats.stressValues),
+    topTriggers: stats.topTriggers.length ? stats.topTriggers : ['None'],
+    triggerFrequency: stats.triggerCounts,
+    reflectionSnippets: reflections.map((r: { content: string }) => r.content),
+    lowestMoodDay: stats.lowestMoodDay,
+    highestMoodDay: stats.highestMoodDay,
+  }
+}
+
+async function getCachedSummary(supabase: any, userId: string, weekStartDate: string) {
+  const { data: cached } = await supabase
+    .from('weekly_summaries')
+    .select('narrative, source')
+    .eq('user_id', userId)
+    .eq('week_start', weekStartDate)
+    .maybeSingle()
+  return cached
 }

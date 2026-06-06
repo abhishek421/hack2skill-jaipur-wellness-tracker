@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { NextRequest } from 'next/server'
 
 const mockSupabase = {
   auth: { getUser: vi.fn() },
@@ -112,5 +113,34 @@ describe('GET /api/weekly-summary', () => {
     expect(body.narrativeSource).toBe('rule-based')
     expect(typeof body.narrative).toBe('string')
     expect(body.narrative.length).toBeGreaterThan(0)
+  })
+
+  it('returns cached weekly summary when week is closed', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'u-1', user_metadata: {} } },
+    })
+
+    const checkIns = [
+      { id: 'ci-1', created_at: '2026-05-01T00:00:00Z', mood: 4, stress_level: 2, energy_level: 4 },
+    ]
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'check_ins') return chain({ data: checkIns, error: null })
+      if (table === 'triggers') return chain({ data: [], error: null })
+      if (table === 'reflections') return chain({ data: [], error: null })
+      if (table === 'weekly_summaries') {
+        return chain({ data: { narrative: 'Cached AI narrative.', source: 'ai' }, error: null })
+      }
+      return chain({ data: null, error: null })
+    })
+
+    const { GET } = await import('../route')
+    const request = new NextRequest('http://localhost/api/weekly-summary?date=2026-05-01')
+    const res = await GET(request)
+    
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.narrative).toBe('Cached AI narrative.')
+    expect(body.narrativeSource).toBe('ai')
   })
 })

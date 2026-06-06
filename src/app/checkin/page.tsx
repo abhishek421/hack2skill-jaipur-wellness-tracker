@@ -63,76 +63,150 @@ export default function CheckInPage() {
     <div className="min-h-screen bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF] flex items-center justify-center p-4">
       <main className="w-full max-w-lg">
         {step !== 'result' && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-slate-600">
-                Step {stepIndex + 1} of 3
-              </span>
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="text-sm text-slate-400 hover:text-slate-600"
-              >
-                ✕ Cancel
-              </button>
-            </div>
-            <div
-              className="w-full bg-white/50 backdrop-blur-sm border border-white/60 rounded-full h-2 shadow-inner"
-              role="progressbar"
-              aria-valuenow={stepIndex + 1}
-              aria-valuemin={1}
-              aria-valuemax={3}
-              aria-label={`Step ${stepIndex + 1} of 3`}
-            >
-              <div
-                className="bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] h-2 rounded-full transition-all duration-500"
-                style={{ width: `${((stepIndex + 1) / 3) * 100}%` }}
-              />
-            </div>
-          </div>
+          <CheckInHeader stepIndex={stepIndex} onCancel={() => router.push('/dashboard')} />
         )}
 
         <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(59,130,246,0.1)] p-8 border border-white/60">
-          {step === 'mood' && (
-            <MoodStep
-              mood={mood}
-              setMood={setMood}
-              stress={stress}
-              setStress={setStress}
-              energy={energy}
-              setEnergy={setEnergy}
-              onNext={() => setStep('triggers')}
-            />
-          )}
-          {step === 'triggers' && (
-            <TriggersStep
-              selected={selectedTriggers}
-              toggle={toggleTrigger}
-              onBack={() => setStep('mood')}
-              onNext={() => setStep('reflection')}
-            />
-          )}
-          {step === 'reflection' && (
-            <ReflectionStep
-              value={reflection}
-              onChange={setReflection}
-              onBack={() => setStep('triggers')}
-              onSubmit={submit}
-              loading={loading}
-              error={error}
-            />
-          )}
-          {step === 'result' && result && mood !== null && (
-            <ResultStep
-              insight={result.insight}
-              recommendation={result.recommendation}
-              mood={mood}
-              onDone={() => router.push('/dashboard')}
-            />
-          )}
+          <CheckInStepRenderer
+            step={step}
+            mood={mood}
+            setMood={setMood}
+            stress={stress}
+            setStress={setStress}
+            energy={energy}
+            setEnergy={setEnergy}
+            selectedTriggers={selectedTriggers}
+            toggleTrigger={toggleTrigger}
+            reflection={reflection}
+            setReflection={setReflection}
+            submit={submit}
+            loading={loading}
+            error={error}
+            result={result}
+            setStep={setStep}
+            router={router}
+          />
         </div>
       </main>
     </div>
   )
+}
+
+function CheckInHeader({ stepIndex, onCancel }: { stepIndex: number; onCancel: () => void }) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium text-slate-600">
+          Step {stepIndex + 1} of 3
+        </span>
+        <button
+          onClick={onCancel}
+          className="text-sm text-slate-400 hover:text-slate-600"
+        >
+          ✕ Cancel
+        </button>
+      </div>
+      <div
+        className="w-full bg-white/50 backdrop-blur-sm border border-white/60 rounded-full h-2 shadow-inner"
+        role="progressbar"
+        aria-valuenow={stepIndex + 1}
+        aria-valuemin={1}
+        aria-valuemax={3}
+        aria-label={`Step ${stepIndex + 1} of 3`}
+      >
+        <div
+          className="bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] h-2 rounded-full transition-all duration-500"
+          style={{ width: `${((stepIndex + 1) / 3) * 100}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+interface CheckInStepRendererProps {
+  step: Step
+  mood: Mood | null
+  setMood: (m: Mood) => void
+  stress: number
+  setStress: (v: number) => void
+  energy: number
+  setEnergy: (v: number) => void
+  selectedTriggers: string[]
+  toggleTrigger: (t: string) => void
+  reflection: string
+  setReflection: (v: string) => void
+  submit: () => void
+  loading: boolean
+  error: string
+  result: Result | null
+  setStep: (s: Step) => void
+  router: any
+}
+
+function CheckInStepRenderer({
+  step,
+  mood,
+  setMood,
+  stress,
+  setStress,
+  energy,
+  setEnergy,
+  selectedTriggers,
+  toggleTrigger,
+  reflection,
+  setReflection,
+  submit,
+  loading,
+  error,
+  result,
+  setStep,
+  router,
+}: CheckInStepRendererProps) {
+  switch (step) {
+    case 'mood':
+      return (
+        <MoodStep
+          mood={mood}
+          setMood={setMood}
+          stress={stress}
+          setStress={setStress}
+          energy={energy}
+          setEnergy={setEnergy}
+          onNext={() => setStep('triggers')}
+        />
+      )
+    case 'triggers':
+      return (
+        <TriggersStep
+          selected={selectedTriggers}
+          toggle={toggleTrigger}
+          onBack={() => setStep('mood')}
+          onNext={() => setStep('reflection')}
+        />
+      )
+    case 'reflection':
+      return (
+        <ReflectionStep
+          value={reflection}
+          onChange={setReflection}
+          onBack={() => setStep('triggers')}
+          onSubmit={submit}
+          loading={loading}
+          error={error}
+        />
+      )
+    case 'result':
+      return result && mood !== null ? (
+        <ResultStep
+          insight={result.insight}
+          recommendation={result.recommendation}
+          mood={mood}
+          onDone={() => router.push('/dashboard')}
+        />
+      ) : null
+    default:
+      return null
+  }
 }
 
 function MoodStep({
