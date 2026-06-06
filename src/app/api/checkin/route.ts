@@ -28,7 +28,10 @@ export async function POST(request: NextRequest) {
   if (triggers !== undefined && (!Array.isArray(triggers) || triggers.length > 20 || triggers.some((t: unknown) => typeof t !== 'string' || t.length > 100))) {
     return NextResponse.json({ error: 'Invalid triggers' }, { status: 400 })
   }
-  if (reflection !== undefined && typeof reflection === 'string' && reflection.length > 1000) {
+  if (reflection !== undefined && typeof reflection !== 'string') {
+    return NextResponse.json({ error: 'reflection must be a string' }, { status: 400 })
+  }
+  if (typeof reflection === 'string' && reflection.length > 1000) {
     return NextResponse.json({ error: 'reflection must be 1000 characters or fewer' }, { status: 400 })
   }
 
@@ -43,14 +46,18 @@ export async function POST(request: NextRequest) {
 
   // Save triggers
   if (triggers?.length > 0) {
-    await supabase.from('triggers').insert(
+    const { error: triggersError } = await supabase.from('triggers').insert(
       triggers.map((t: string) => ({ check_in_id: checkIn.id, trigger_name: t }))
     )
+    if (triggersError) return NextResponse.json({ error: triggersError.message }, { status: 500 })
   }
 
   // Save reflection
   if (reflection?.trim()) {
-    await supabase.from('reflections').insert({ check_in_id: checkIn.id, content: reflection.trim() })
+    const { error: reflectionError } = await supabase
+      .from('reflections')
+      .insert({ check_in_id: checkIn.id, content: reflection.trim() })
+    if (reflectionError) return NextResponse.json({ error: reflectionError.message }, { status: 500 })
   }
 
   // Fetch history for engine inputs
@@ -90,11 +97,13 @@ export async function POST(request: NextRequest) {
   })
 
   // Save wellness action
-  const { data: action } = await supabase
+  const { data: action, error: actionError } = await supabase
     .from('wellness_actions')
     .insert({ user_id: user.id, insight, recommendation })
     .select()
     .single()
+
+  if (actionError) console.error('[checkin] wellness_actions insert failed:', actionError.message)
 
   return NextResponse.json({ checkInId: checkIn.id, insight, recommendation, actionId: action?.id })
 }

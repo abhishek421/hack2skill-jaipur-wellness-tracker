@@ -1,4 +1,5 @@
 import type { CheckIn } from '@/lib/types'
+import { countFrequency } from '@/lib/utils/countFrequency'
 
 interface InsightInput {
   current: { mood: number; stress: number; energy: number; triggers: string[] }
@@ -7,17 +8,11 @@ interface InsightInput {
 
 export function generateInsight(input: InsightInput): string {
   const { current, history } = input
-  const allTriggers = history.triggers.map((t) => t.trigger_name)
-
-  const triggerCounts: Record<string, number> = {}
-  allTriggers.forEach((t) => {
-    triggerCounts[t] = (triggerCounts[t] || 0) + 1
-  })
-
-  // Include current triggers in frequency
-  current.triggers.forEach((t) => {
-    triggerCounts[t] = (triggerCounts[t] || 0) + 1
-  })
+  const allTriggers = [
+    ...history.triggers.map((t) => t.trigger_name),
+    ...current.triggers,
+  ]
+  const triggerCounts = countFrequency(allTriggers)
 
   const sortedTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1])
   const topTrigger = sortedTriggers[0]

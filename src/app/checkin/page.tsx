@@ -49,7 +49,7 @@ export default function CheckInPage() {
       const data = await res.json()
       setResult({ insight: data.insight, recommendation: data.recommendation })
       setStep('result')
-    } catch (e) {
+    } catch {
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
@@ -58,7 +58,6 @@ export default function CheckInPage() {
 
   const steps: Step[] = ['mood', 'triggers', 'reflection', 'result']
   const stepIndex = steps.indexOf(step)
-  const progress = ((stepIndex) / 3) * 100
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF] flex items-center justify-center p-4">
@@ -122,11 +121,11 @@ export default function CheckInPage() {
               error={error}
             />
           )}
-          {step === 'result' && result && (
+          {step === 'result' && result && mood !== null && (
             <ResultStep
               insight={result.insight}
               recommendation={result.recommendation}
-              mood={mood!}
+              mood={mood}
               onDone={() => router.push('/dashboard')}
             />
           )}
@@ -226,7 +225,7 @@ function SliderField({
         min={1}
         max={5}
         value={value}
-        onChange={(e) => onChange(parseInt(e.target.value))}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
         aria-label={`${label}: ${value} out of 5`}
         aria-valuemin={1}
         aria-valuemax={5}
@@ -250,13 +249,11 @@ function TriggersStep({
   onNext: () => void
 }) {
   const [customText, setCustomText] = useState('')
-  const [customAdded, setCustomAdded] = useState(false)
 
   function addCustom() {
     const text = customText.trim()
     if (!text) return
     toggle(`Other: ${text}`)
-    setCustomAdded(true)
     setCustomText('')
   }
 

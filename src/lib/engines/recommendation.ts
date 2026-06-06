@@ -109,5 +109,7 @@ export function generateRecommendation(input: RecommendationInput): string {
     if (calming.length > 0) return calming[0]
   }
 
-  return pool[Math.floor(Math.random() * pool.length)]
+  // Deterministic selection: rotate through pool using recent history length as offset
+  const offset = recentRecommendations.length % pool.length
+  return pool[offset]
 }

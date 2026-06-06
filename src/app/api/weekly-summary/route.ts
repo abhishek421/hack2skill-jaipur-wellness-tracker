@@ -2,33 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { MOOD_LABELS } from '@/lib/types'
 import { generateWeeklyNarrative } from '@/lib/ai/generateWeeklyNarrative'
-import type { WeeklyNarrativeInput, TrendDirection } from '@/lib/ai/generateWeeklyNarrative'
-
-function slope(values: number[]): number {
-  const n = values.length
-  if (n < 2) return 0
-  const meanX = (n - 1) / 2
-  const meanY = values.reduce((a, b) => a + b, 0) / n
-  let num = 0, den = 0
-  for (let i = 0; i < n; i++) {
-    num += (i - meanX) * (values[i] - meanY)
-    den += (i - meanX) ** 2
-  }
-  return den === 0 ? 0 : num / den
-}
-
-function trend(values: number[]): TrendDirection {
-  if (values.length < 2) return 'stable'
-  const s = slope(values)
-  const variance = values.reduce((acc, v) => {
-    const mean = values.reduce((a, b) => a + b, 0) / values.length
-    return acc + (v - mean) ** 2
-  }, 0) / values.length
-  if (variance > 1.2) return 'volatile'
-  if (s > 0.15) return 'improving'
-  if (s < -0.15) return 'declining'
-  return 'stable'
-}
+import type { WeeklyNarrativeInput } from '@/lib/ai/generateWeeklyNarrative'
+import { trend } from '@/lib/utils/trend'
+import { countFrequency } from '@/lib/utils/countFrequency'
 
 function ruleBased(
   checkInCount: number,
@@ -38,7 +14,7 @@ function ruleBased(
   avgEnergy: number,
   moodValues: number[]
 ): string {
-  const moodLabel = MOOD_LABELS[Math.round(avgMood) as 1 | 2 | 3 | 4 | 5]
+  const moodLabel = MOOD_LABELS[Math.min(5, Math.max(1, Math.round(avgMood))) as 1 | 2 | 3 | 4 | 5]
   const moodTrend = moodValues.slice(-3)
   const moodDeclining = moodTrend.length >= 2 && moodTrend[moodTrend.length - 1] < moodTrend[0]
 
@@ -109,10 +85,7 @@ export async function GET() {
   const moodValues = checkIns.map((c: { mood: number }) => c.mood)
   const stressValues = checkIns.map((c: { stress_level: number }) => c.stress_level)
 
-  const triggerCounts: Record<string, number> = {}
-  ;(triggers || []).forEach((t: { trigger_name: string }) => {
-    triggerCounts[t.trigger_name] = (triggerCounts[t.trigger_name] || 0) + 1
-  })
+  const triggerCounts = countFrequency((triggers || []).map((t: { trigger_name: string }) => t.trigger_name))
   const sortedTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1])
   const topTrigger = sortedTriggers[0]?.[0] || 'None'
   const topTriggers = sortedTriggers.slice(0, 3).map(([name]) => name)
@@ -150,7 +123,8 @@ export async function GET() {
     }
   }
 
-  const studentName = (user.user_metadata?.name as string | undefined) ?? 'Student'
+  const rawName = user.user_metadata?.name
+  const studentName = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : 'Student'
   const firstName = studentName.split(' ')[0]
 
   const narrativeInput: WeeklyNarrativeInput = {

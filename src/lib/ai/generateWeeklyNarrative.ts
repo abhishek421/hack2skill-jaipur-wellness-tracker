@@ -27,7 +27,7 @@ Use the student's first name once, naturally.
 End with one forward-looking sentence that is encouraging without being dismissive of difficulty.
 Keep the total response under 120 words.`
 
-function sanitiseSnippets(snippets: string[]): string[] {
+export function sanitiseSnippets(snippets: string[]): string[] {
   const emailRe = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
   const phoneRe = /(\+?\d[\d\s\-().]{7,}\d)/g
   return snippets

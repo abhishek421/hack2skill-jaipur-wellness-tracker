@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -14,25 +14,39 @@ const TRIGGER_COLORS = ['#6366f1', '#8b5cf6', '#a855f7', '#c084fc', '#e879f9', '
 
 export default function DashboardPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [days, setDays] = useState(7)
   const [user, setUser] = useState<{ email?: string; user_metadata?: { name?: string } } | null>(null)
 
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async (signal: AbortSignal) => {
     setLoading(true)
+    setFetchError(null)
     try {
-      const res = await fetch(`/api/dashboard?days=${days}`)
-      if (res.ok) setData(await res.json())
+      const res = await fetch(`/api/dashboard?days=${days}`, { signal })
+      if (!res.ok) {
+        setFetchError('Failed to load dashboard data. Please try again.')
+      } else {
+        setData(await res.json())
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setFetchError('Failed to load dashboard data. Please try again.')
+      }
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }, [days])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
-    fetchDashboard()
+    const controller = new AbortController()
+    supabase.auth.getUser()
+      .then(({ data: { user } }) => setUser(user))
+      .catch(() => {})
+    fetchDashboard(controller.signal)
+    return () => controller.abort()
   }, [fetchDashboard, supabase.auth])
 
   async function signOut() {
@@ -47,7 +61,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF]">
       {/* Nav */}
-      <nav className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-white/60 px-6 py-3 shadow-[0_8px_30px_rgb(59,130,246,0.05)]">
+      <nav aria-label="Main navigation" className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-white/60 px-6 py-3 shadow-[0_8px_30px_rgb(59,130,246,0.05)]">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">🧘</span>
@@ -76,7 +90,7 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">
@@ -125,6 +139,12 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+
+        {fetchError && (
+          <div role="alert" aria-live="polite" className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm">
+            {fetchError}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -189,7 +209,7 @@ export default function DashboardPage() {
             {data && <RecentActionsCard actions={data.recentActions} />}
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }
@@ -224,8 +244,8 @@ function RecentActionsCard({ actions }: { actions: Array<{ generated_at: string;
         <span aria-hidden="true">🎯</span> Recent Wellness Actions
       </h3>
       <div className="space-y-3">
-        {actions.map((action, i) => (
-          <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-white/50 border border-white/60 backdrop-blur-sm shadow-sm">
+        {actions.map((action) => (
+          <div key={action.generated_at} className="flex items-start gap-3 p-3 rounded-2xl bg-white/50 border border-white/60 backdrop-blur-sm shadow-sm">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shadow-inner">
               {new Date(action.generated_at).getDate()}
             </div>

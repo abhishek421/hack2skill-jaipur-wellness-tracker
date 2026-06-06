@@ -70,6 +70,7 @@ export interface DashboardData {
   triggerFrequency: { name: string; count: number }[]
   recentActions: WellnessAction[]
   streakDays: number
+  totalCheckIns: number
 }
 
 export interface WeeklySummary {

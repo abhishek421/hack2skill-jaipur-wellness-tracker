@@ -11,13 +11,20 @@ export default function WeeklySummaryPage() {
   const [summary, setSummary] = useState<WeeklySummary | null>(null)
   const [empty, setEmpty] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/weekly-summary')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((data) => {
         if (data.empty) setEmpty(true)
         else setSummary(data)
+      })
+      .catch(() => {
+        setFetchError('Failed to load your weekly summary. Please try again.')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -62,7 +69,13 @@ export default function WeeklySummaryPage() {
           </div>
         )}
 
-        {!loading && empty && (
+        {!loading && fetchError && (
+          <div role="alert" aria-live="polite" className="bg-white/70 backdrop-blur-xl rounded-3xl border border-red-200 p-8 text-center text-red-700 text-sm">
+            {fetchError}
+          </div>
+        )}
+
+        {!loading && !fetchError && empty && (
           <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(59,130,246,0.1)] p-12 text-center">
             <div className="text-4xl mb-3">📊</div>
             <h3 className="font-semibold text-slate-700 mb-1">Not enough data yet</h3>
@@ -76,7 +89,7 @@ export default function WeeklySummaryPage() {
           </div>
         )}
 
-        {!loading && summary && (
+        {!loading && !fetchError && summary && (
           <div className="space-y-6">
             {/* Narrative */}
             <div className="bg-white/80 backdrop-blur-2xl rounded-3xl p-6 text-slate-900 shadow-[0_8px_30px_rgb(59,130,246,0.2)] border border-white/60 relative overflow-hidden">
@@ -93,25 +106,21 @@ export default function WeeklySummaryPage() {
                 label="Average Mood"
                 value={`${moodEmoji} ${summary.avgMood.toFixed(1)}`}
                 sub={moodLabel}
-                color="indigo"
               />
               <MetricCard
                 label="Average Stress"
                 value={`${summary.avgStress.toFixed(1)}/5`}
                 sub={summary.avgStress > 3 ? 'Elevated' : 'Manageable'}
-                color="red"
               />
               <MetricCard
                 label="Average Energy"
                 value={`${summary.avgEnergy.toFixed(1)}/5`}
                 sub={summary.avgEnergy < 2.5 ? 'Low' : summary.avgEnergy >= 4 ? 'High' : 'Moderate'}
-                color="green"
               />
               <MetricCard
                 label="Check-ins"
                 value={`${summary.checkInCount}`}
                 sub={`${summary.checkInCount >= 5 ? 'Great' : summary.checkInCount >= 3 ? 'Good' : 'Keep going'} consistency`}
-                color="purple"
               />
             </div>
 
@@ -160,14 +169,7 @@ export default function WeeklySummaryPage() {
   )
 }
 
-function MetricCard({
-  label, value, sub, color,
-}: {
-  label: string
-  value: string
-  sub: string
-  color: string
-}) {
+function MetricCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <div className="rounded-3xl border border-white/60 bg-white/50 backdrop-blur-sm p-4 shadow-sm text-slate-900">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{label}</p>

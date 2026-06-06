@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { countFrequency } from '@/lib/utils/countFrequency'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const rawDays = parseInt(searchParams.get('days') || '7')
+  const rawDays = parseInt(searchParams.get('days') || '7', 10)
   const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 90) : 7
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
@@ -54,10 +55,7 @@ export async function GET(request: NextRequest) {
     energy: c.energy_level,
   }))
 
-  const triggerCounts: Record<string, number> = {}
-  triggers.forEach((t: { trigger_name: string }) => {
-    triggerCounts[t.trigger_name] = (triggerCounts[t.trigger_name] || 0) + 1
-  })
+  const triggerCounts = countFrequency(triggers.map((t: { trigger_name: string }) => t.trigger_name))
   const triggerFrequency = Object.entries(triggerCounts)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
