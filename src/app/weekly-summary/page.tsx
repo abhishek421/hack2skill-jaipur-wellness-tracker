@@ -42,7 +42,7 @@ export default function WeeklySummaryPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF]">
-      <nav className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-white/60 px-6 py-3 shadow-[0_8px_30px_rgb(59,130,246,0.05)]">
+      <nav aria-label="Main navigation" className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-white/60 px-6 py-3 shadow-[0_8px_30px_rgb(59,130,246,0.05)]">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <button
             onClick={() => router.push('/dashboard')}
@@ -57,7 +57,7 @@ export default function WeeklySummaryPage() {
         </div>
       </nav>
 
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <main className="max-w-2xl mx-auto px-6 py-8">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-slate-900">Weekly Summary</h1>
           <p className="text-slate-500 mt-1">Your emotional wellness this week</p>
@@ -65,7 +65,7 @@ export default function WeeklySummaryPage() {
 
         {loading && (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div role="status" aria-label="Loading weekly summary" className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
@@ -164,7 +164,7 @@ export default function WeeklySummaryPage() {
             </button>
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

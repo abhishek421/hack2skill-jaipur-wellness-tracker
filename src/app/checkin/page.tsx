@@ -61,7 +61,7 @@ export default function CheckInPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
+      <main className="w-full max-w-lg">
         {step !== 'result' && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
@@ -130,7 +130,7 @@ export default function CheckInPage() {
             />
           )}
         </div>
-      </div>
+      </main>
     </div>
   )
 }

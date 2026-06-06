@@ -84,4 +84,57 @@ describe('GET /api/dashboard', () => {
     expect(body.recentActions).toEqual([])
     expect(body.streakDays).toBe(0)
   })
+
+  it('defaults to 7 days when days param is not a number', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u-1' } } })
+    mockSupabase.from.mockReturnValue(chain({ data: [], error: null }))
+
+    const { GET } = await import('../route')
+    const res = await GET(makeRequest('?days=abc'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toHaveProperty('moodTrend')
+  })
+
+  it('returns empty triggerFrequency when check-in window has no triggers', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u-1' } } })
+
+    const checkIns = [
+      { created_at: new Date().toISOString(), mood: 3, stress_level: 2, energy_level: 3 },
+    ]
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'check_ins') return chain({ data: checkIns, error: null })
+      if (table === 'triggers') return chain({ data: [], error: null })
+      if (table === 'wellness_actions') return chain({ data: [], error: null })
+      return chain({ data: [], error: null })
+    })
+
+    const { GET } = await import('../route')
+    const res = await GET(makeRequest('?days=7'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.triggerFrequency).toEqual([])
+    expect(body.moodTrend).toHaveLength(1)
+  })
+
+  it('clamps days param below minimum to 1', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u-1' } } })
+    mockSupabase.from.mockReturnValue(chain({ data: [], error: null }))
+
+    const { GET } = await import('../route')
+    const res = await GET(makeRequest('?days=0'))
+    expect(res.status).toBe(200)
+  })
+
+  it('includes totalCheckIns in response', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u-1' } } })
+    mockSupabase.from.mockReturnValue(chain({ data: [], error: null }))
+
+    const { GET } = await import('../route')
+    const res = await GET(makeRequest())
+    const body = await res.json()
+    expect(body).toHaveProperty('totalCheckIns')
+    expect(typeof body.totalCheckIns).toBe('number')
+  })
 })
