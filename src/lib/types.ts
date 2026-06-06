@@ -79,4 +79,5 @@ export interface WeeklySummary {
   topTrigger: string
   checkInCount: number
   narrative: string
+  narrativeSource: 'ai' | 'rule-based'
 }

@@ -52,6 +52,21 @@ const RECOMMENDATIONS: Record<string, string[]> = {
     'Journal about your feelings for 10 minutes to process them.',
     'Focus your study energy in short, productive bursts today.',
   ],
+  'Health Issues': [
+    'Prioritize rest today — your body needs recovery to think clearly.',
+    'Do a light 5-minute stretching routine to improve circulation and energy.',
+    'Stay hydrated and have a nutritious meal before your next study block.',
+  ],
+  'Social Media': [
+    'Put your phone on silent for the next study session and keep it out of sight.',
+    'Set a specific 15-minute social media window after studying — not before.',
+    'Replace one social media scroll session with a short walk outside.',
+  ],
+  'Lack of Preparation': [
+    'Start with just 15 minutes on the most important topic — momentum builds quickly.',
+    'Make a simple list of three things you want to cover today and stick to it.',
+    'Reach out to a classmate or teacher with one specific question you\'re stuck on.',
+  ],
 }
 
 const DEFAULT_RECOMMENDATIONS = [

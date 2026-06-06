@@ -1,4 +1,4 @@
-import type { CheckIn, Trigger } from '@/lib/types'
+import type { CheckIn } from '@/lib/types'
 
 interface InsightInput {
   current: { mood: number; stress: number; energy: number; triggers: string[] }

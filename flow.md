@@ -1,240 +1,166 @@
 # MindTrack - User Flow & Test Specification
 
-This document details the user journey and interaction flows for **MindTrack**, a mental wellness tracking application tailored for students preparing for examinations. It serves as both a user manual and a step-by-step testing specification for automated testing tools or AI agents.
+This document details the user journey, interaction flows, accessibility features, and verification checkpoints for **MindTrack** (Airy Cloud Glassmorphism Version). It is written for both human developers and automated AI testing agents.
 
 ---
 
 ## 1. Overview & Architecture
 
-MindTrack implements the **Track → Understand → Improve** self-awareness cycle through a Next.js 16 frontend, Next.js API routes, and a Supabase backend database.
+MindTrack implements the **Track → Understand → Improve** wellness cycle. The application utilizes a Next.js 16 frontend styled with an **Airy Cloud Glassmorphism** system, backed by a Supabase database and OpenAI-driven weekly syntheses.
 
 ### Core Routing Map
 - **Public Routes:**
   - `GET /` — Redirects to `/dashboard` if authenticated, else `/auth/login`.
   - `GET /auth/login` — Sign-in interface.
   - `GET /auth/signup` — Account registration.
-  - `GET /auth/callback` — Supabase authentication callback router.
-- **Authenticated/Protected Routes:** (Guard enforced via [middleware.ts](file:///Users/abhi/Documents/hack2skill/src/middleware.ts))
-  - `GET /dashboard` — Metrics overview, charts, and recommendations.
-  - `GET /checkin` — Step-by-step wellness tracking wizard.
-  - `GET /weekly-summary` — Aggregated weekly emotional synthesis.
+- **Authenticated/Protected Routes:** (Guard logic defined in [src/proxy.ts](file:///Users/abhi/Documents/hack2skill/src/proxy.ts))
+  - `GET /dashboard` — Analytics, trends, and recent recommendations.
+  - `GET /checkin` — Multi-step wellness logging wizard.
+  - `GET /weekly-summary` — AI-generated weekly report.
 - **Backend APIs:**
-  - `POST /api/checkin` — Submits checklist data, processes rule engines, and returns recommendations.
-  - `GET /api/dashboard` — Retrieves metrics, streak calculations, trends, and recent actions.
-  - `GET /api/weekly-summary` — Retrieves 7-day average metrics and generated narratives.
+  - `POST /api/checkin` — Saves check-in data with server-side validation.
+  - `GET /api/dashboard` — Retrieves metrics, streak, and recent actions.
+  - `GET /api/weekly-summary` — Retrieves weekly statistics and AI narrative with fallback capability.
 
 ---
 
-## 2. Prerequisites & Local Setup
+## 2. Design System: Airy Cloud Glassmorphism
 
-Before conducting tests, ensure the development environment is running and configured:
-
-1. **Environment Variables:**
-   Create a `.env.local` file in the project root containing valid Supabase parameters:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   ```
-
-2. **Database Schema:**
-   Ensure the PostgreSQL tables (`check_ins`, `triggers`, `reflections`, `wellness_actions`) and RLS policies are applied in your Supabase instance using [supabase-schema.sql](file:///Users/abhi/Documents/hack2skill/supabase-schema.sql).
-
-3. **Start Server:**
-   ```bash
-   npm run dev
-   ```
-   Open the application at `http://localhost:3000`.
+Testing agents must expect the following CSS structures and styles representing the **Airy Cloud** theme:
+- **Global Theme Color:** Restricted to soft sky blues, cyans, and clean white tones.
+- **Global Background:** Gradient from light sky blue to pure white: `.bg-gradient-to-b from-[#E0F2FE] to-[#FFFFFF]`.
+- **Card Containers:** Frosted white panels using: `.bg-white/70 .backdrop-blur-xl .border-white/60 .shadow-[0_8px_30px_rgb(59,130,246,0.1)]`.
+- **Primary Buttons:** Blue actions with glowing shadow offsets: `.bg-blue-500 .text-white .shadow-lg .shadow-blue-500/30`.
+- **Interactive Elements:** Emojis are retained for friendly mood icons, but decorative emojis are hidden using `aria-hidden="true"`.
 
 ---
 
 ## 3. Step-by-Step User Flows & Test Cases
 
-### Flow 1: User Signup & Registration
+### Flow 1: User Registration (Signup)
 
-- **Endpoint / URL:** `http://localhost:3000/auth/signup`
-- **Goal:** Create a new user profile.
+- **Endpoint / URL:** `/auth/signup`
+- **Theme Frame:** Frosted glass panel wrapping authentication forms (`AuthLayout`) with a hidden-on-mobile banner image (`public/auth-banner.png`) on the left.
 - **UI Elements & Selectors:**
-  - Name input: `input[type="text"]` (placeholder: `"Your name"`)
-  - Email input: `input[type="email"]` (placeholder: `"you@example.com"`)
-  - Password input: `input[type="password"]` (placeholder: `"At least 6 characters"`)
-  - Submit Button: `button[type="submit"]` (text: `"Create Account"`, transitions to `"Creating account..."` on click)
-  - Navigation Link: `a[href="/auth/login"]` (text: `"Sign in"`)
+  - Name input: `input[id="signup-name"]` or `input[type="text"]` (placeholder: `"Your name"`) linked to a `<label>`
+  - Email input: `input[type="email"]` linked to a `<label>`
+  - Password input: `input[type="password"]` (placeholder: `"At least 6 characters"`) linked to a `<label>`
+  - Submit Button: `button[type="submit"]` (text: `"Create Account"`, has `aria-busy` set to true during submission)
 
-#### Test Steps & Assertions:
+#### Assertions & Verification:
 1. Navigate to `/auth/signup`.
-2. Input a test Name (e.g., `Test User`), Email (e.g., `testuser@example.com`), and a Password (minimum 6 characters, e.g., `password123`).
-3. Click the **Create Account** button.
-4. **Assertion:** The page redirects to `/dashboard` upon successful signup.
-5. *Edge Case Assertion:* Input a password with fewer than 6 characters and attempt to submit. Verify the input field shows validation errors, or that the UI displays an error alert if the signup fails due to existing credentials.
+2. Enter valid registration fields. Click **Create Account**.
+3. **Assertion:** Upon successful signup, the router redirects to `/dashboard`.
+4. **Validation Check:** Server-side constraints reject empty fields.
 
 ---
 
-### Flow 2: User Login & Authentication Guard
+### Flow 2: User Login & Session Gate
 
-- **Endpoint / URL:** `http://localhost:3000/auth/login`
-- **Goal:** Authenticate an existing user or verify security redirection.
-- **UI Elements & Selectors:**
-  - Email input: `input[type="email"]` (placeholder: `"you@example.com"`)
-  - Password input: `input[type="password"]` (placeholder: `"••••••••"`)
-  - Submit Button: `button[type="submit"]` (text: `"Sign In"`, transitions to `"Signing in..."` on click)
-  - Registration Link: `a[href="/auth/signup"]` (text: `"Sign up"`)
+- **Endpoint / URL:** `/auth/login`
+- **UI Elements:**
+  - Email input: `input[type="email"]`
+  - Password input: `input[type="password"]`
+  - Submit Button: `button[type="submit"]` (text: `"Sign In"`)
+  - Error Box: `[role="alert"]` with `aria-live="polite"`
 
-#### Test Steps & Assertions:
-1. **Redirection Check:** Try navigating directly to `http://localhost:3000/dashboard` without a session.
-   - **Assertion:** The middleware blocks navigation and redirects the browser back to `/auth/login`.
-2. Navigate to `/auth/login`.
-3. Input registered credentials (`testuser@example.com` / `password123`).
-4. Click **Sign In**.
-5. **Assertion:** The browser successfully navigates to `/dashboard`.
-6. *Incorrect Credentials Check:* Input incorrect credentials and click **Sign In**.
-   - **Assertion:** An error message block appears (`.bg-red-50.border-red-200.text-red-700`) stating the auth error details.
+#### Assertions & Verification:
+1. Navigate to `/dashboard` directly without authentication.
+2. **Assertion:** Guard logic redirects the browser back to `/auth/login`.
+3. Input correct credentials on `/auth/login` and submit.
+4. **Assertion:** Navigates to `/dashboard`. Invalid submissions render an error box displaying `role="alert"` and `aria-live="polite"`.
 
 ---
 
 ### Flow 3: Daily Check-In Flow (Multi-step Wizard)
 
-- **Endpoint / URL:** `http://localhost:3000/checkin`
-- **Goal:** Track mood, specify stress/energy values, select emotional triggers, log journal notes, and retrieve wellness actions.
-- **Wizard Progress Indicator:** `Step X of 3` text accompanied by a loading progress bar.
-- **Cancel Button:** `✕ Cancel` redirects to `/dashboard`.
+- **Endpoint / URL:** `/checkin`
+- **Wizard Progress Bar:** `role="progressbar"` with attributes `aria-valuenow`, `aria-valuemin={1}`, `aria-valuemax={3}`, and `aria-label="Step X of 3"`.
 
-#### Step 3.1: Mood, Stress, & Energy Level Selection (`step = 'mood'`)
+#### Step 3.1: Mood, Stress, & Energy Selection (`step = 'mood'`)
 - **UI Elements:**
-  - Emojis: 5 buttons containing `😢`, `😞`, `😐`, `🙂`, `😄` respectively.
-  - Stress Slider: `input[type="range"]` representing "Stress Level" (value range 1-5).
-  - Energy Slider: `input[type="range"]` representing "Energy Level" (value range 1-5).
-  - Continue Button: `button` containing `"Continue →"` (disabled by default).
-- **Test Steps & Assertions:**
-  - Attempt to click `"Continue →"` initially. **Assertion:** The button is disabled.
-  - Click the emoji `😐` (Mood: 3). **Assertion:** The button is highlighted and `"Continue →"` becomes active.
-  - Drag the Stress level slider to `4`.
-  - Drag the Energy level slider to `2`.
-  - Click `"Continue →"`. **Assertion:** Wizard changes interface to the triggers step.
+  - Emojis: 5 buttons containing `😢`, `😞`, `😐`, `🙂`, `😄` having `aria-pressed` set to true when selected and `aria-label` matching mood labels.
+  - Stress Slider: `input[type="range"][id="slider-stress-level"]` with `aria-label="Stress Level: X out of 5"`, `aria-valuenow`.
+  - Energy Slider: `input[type="range"][id="slider-energy-level"]` with `aria-label="Energy Level: X out of 5"`, `aria-valuenow`.
+  - Continue Button: `button` with text `"Continue →"` (disabled until a mood is selected).
 
 #### Step 3.2: Trigger Identification (`step = 'triggers'`)
 - **UI Elements:**
-  - Categorized stress triggers grouped under *Academic*, *Lifestyle*, *Social*, and *Other*.
-  - Trigger Buttons: Individual clickable pills (e.g. `Exam Anxiety`, `Study Backlog`, `Poor Sleep`, `Peer Comparison`, `Other`).
-  - Back Button: `button` with text `"← Back"`.
-  - Continue Button: `button` with text `"Continue →"`.
-- **Test Steps & Assertions:**
-  - Verify that no trigger pills are active by default.
-  - Select `Exam Anxiety` and `Poor Sleep`. **Assertion:** Selected pills update style to solid background (`bg-indigo-600 text-white`).
-  - Click `"Continue →"`. **Assertion:** Wizard changes interface to the reflection journal step.
+  - Standard trigger pills: Individual buttons (e.g. `Exam Anxiety`, `Study Backlog`) with `aria-pressed` state.
+  - Custom trigger input: Text box `input[id="custom-trigger-input"]` with placeholder `"Describe another trigger..."` and label hidden using `.sr-only`.
+  - Add Button: `button` with text `"Add"` (disabled if input is empty).
+  - Custom triggers list: Shows added trigger pills with a remove button containing `aria-label="Remove trigger: [name]"`.
 
-#### Step 3.3: Reflection Journal Entry (`step = 'reflection'`)
+#### Step 3.3: Reflection Journal (`step = 'reflection'`)
 - **UI Elements:**
-  - Textarea: `textarea` (placeholder: `"What's on your mind?..."`)
-  - Counter: Character tracker (e.g., `0/1000`)
-  - Back Button: `button` with text `"← Back"`.
-  - Complete Button: `button` with text `"✓ Complete"` (transitions to `"Saving..."` on click).
-- **Test Steps & Assertions:**
-  - Enter reflection content: `Feeling a bit stressed about the upcoming mock tests, sleep was interrupted.`
-  - Verify that the character counter updates to match the input length.
-  - Click `"✓ Complete"`.
-  - **Assertion:** Trigger a POST request to `/api/checkin` containing all selections. On success, change step to results.
+  - Textarea: `textarea[id="reflection-text"]` linked to a screen-reader-only label and `aria-describedby="reflection-char-count"`.
+  - Character counter: `p[id="reflection-char-count"]` displaying `X/1000`.
 
-#### Step 3.4: Insight & Recommendation Result (`step = 'result'`)
+#### Step 3.4: Insight & Recommendation Results (`step = 'result'`)
 - **UI Elements:**
-  - Complete Message: `"Check-in complete!"`
-  - Insight Box: Container displaying the rule-generated wellness observation (`💡 Today's Insight`).
-  - Recommendation Box: Container displaying the recommended action (`🎯 Recommended Action`).
-  - Completion Button: `button` containing `"View Dashboard →"`.
-- **Test Steps & Assertions:**
-  - **Assertion:** Insight box and Recommendation box display non-empty text values returned by the API.
-  - Click `"View Dashboard →"`.
-  - **Assertion:** Router navigates back to `/dashboard`.
+  - `💡 Today's Insight` container containing rule-based insights.
+  - `🎯 Recommended Action` container containing personalized recommendations.
+
+#### API Validation Guard (Server-Side Checks):
+If an agent attempts a direct POST to `/api/checkin`:
+- `mood`, `stressLevel`, and `energyLevel` must be integers between `1` and `5`. (Out-of-range returns `400`).
+- `triggers` array length must be $\le 20$, and each trigger string must be $\le 100$ characters.
+- `reflection` string must be $\le 1000$ characters.
 
 ---
 
 ### Flow 4: Dashboard Overview
 
-- **Endpoint / URL:** `http://localhost:3000/dashboard`
-- **Goal:** Access aggregated statistics, visual progress charts, and recommendation history.
-- **UI Elements & Selectors:**
-  - Nav Items: `"Weekly Summary"` button, `"+ Check In"` button, `"Sign out"` button.
-  - Header: `"Hello, [Name] 👋"` text.
-  - Stat Cards:
-    - Current Mood: Shows the emoji (e.g. `😐`) and the label text (e.g. `Neutral`).
-    - Streak: Displays integer value representing consecutive check-in days.
-    - Latest Stress: Displays numeric level (e.g. `4/5`).
-    - Latest Energy: Displays numeric level (e.g. `2/5`).
-  - Timeframe Filters: Group of 3 buttons: `"7 days"`, `"14 days"`, and `"30 days"`.
-  - Trend Charts (Recharts SVGs):
-    - `Mood & Stress Trend` LineChart.
-    - `Top Stress Triggers` BarChart.
-  - Wellness Action History: Panel titled `"Recent Wellness Actions"` listing generated recommendations.
+- **Endpoint / URL:** `/dashboard`
+- **UI Elements & Visuals:**
+  - Header: Welcoming string `"Hello, [Name] 👋"`.
+  - Stat Cards: Glassmorphic boxes representing mood emoji, streak days count, stress level, and energy level.
+  - Timeframe Filters: 3 buttons `"7 days"`, `"14 days"`, and `"30 days"`.
+  - Recharts SVG Wrapper: Wrapped in `[role="img"][aria-label="Mood & Stress Trend"]` and `[role="img"][aria-label="Top Stress Triggers"]`.
+  - Recent Wellness Actions: Panel displaying the recent history.
 
 #### Test Steps & Assertions:
-1. Navigate to `/dashboard`.
-2. **Assertion (Active State):** Since a check-in was completed in Flow 3, the dashboard exhibits live charts and populated stat cards.
-3. Observe the Stat Cards: Verify they match the inputs from Flow 3 (Mood: `😐`, Stress: `4/5`, Energy: `2/5`).
-4. Click the `"14 days"` and `"30 days"` filter buttons. **Assertion:** The loading spinner briefly activates and charts recalculate without crashing.
-5. Locate the **Recent Wellness Actions** list. Verify the action generated in Flow 3 (from step 3.4) appears at the top of this list with today's date.
-6. *Empty State Assertion (New Users):* On a completely fresh account before any check-ins:
-   - **Assertion:** Charts are replaced by an empty state container displaying `🌱 No check-ins yet` and a `"Start your first check-in"` CTA button.
+1. **Sanitisation Verification:** Click `"30 days"` filter.
+   - **Assertion:** Triggers API fetch `/api/dashboard?days=30`. The backend sanitizes the parameter using `Math.min(Math.max(rawDays, 1), 90)` to prevent excessive DB queries.
+2. **Null-Dereference Safety:** Verify dashboard does not crash on slow or failing network requests. The rendering is protected via a loading state wrapper and null-guards on data fields.
 
 ---
 
-### Flow 5: Weekly Summary View
+### Flow 5: Weekly Summary & AI-Powered Narrative
 
-- **Endpoint / URL:** `http://localhost:3000/weekly-summary`
-- **Goal:** Review synthesis data of the user's progress over the last 7 days.
-- **UI Elements & Selectors:**
-  - Back Button: `"← Dashboard"` redirect.
-  - Narrative Card: Top card containing the dynamic text narrative explaining the week's patterns.
-  - Metric Cards Grid:
-    - `"Average Mood"` card (shows decimal average and label).
-    - `"Average Stress"` card.
-    - `"Average Energy"` card.
-    - `"Check-ins"` count card.
-  - Trigger Alert: `"Top Stress Trigger"` highlights card displaying the most frequent trigger.
-  - Radar Chart: `"Wellness Balance"` polar radar map mapping Mood, Energy, and Calmness.
-  - CTA Button: `"Start Today's Check-in →"` (redirects to `/checkin`).
-
-#### Test Steps & Assertions:
-1. Navigate to `/weekly-summary`.
-2. **Assertion:** If at least one check-in exists in the last 7 days, the dynamic narrative block and metric grid render properly.
-3. Compare the Average Mood, Stress, and Energy with completed check-ins. Verify they accurately reflect the computed mean.
-4. Verify the Wellness Balance radar chart SVG is rendered on-screen.
-5. *Insufficient Data Assertion:* If there are no check-ins in the last 7 days:
-   - **Assertion:** The UI shows an empty state block stating `📊 Not enough data yet` and a `"Start Check-in"` button.
-
----
-
-### Flow 6: Logout Flow
-
-- **Goal:** End user session and clear security tokens.
+- **Endpoint / URL:** `/weekly-summary`
 - **UI Elements:**
-  - Sign out Button: `"Sign out"` inside the navigation bar.
+  - Narrative Card: Outstanding floating glass pane containing the dynamic reflection narrative.
+  - Metrics Grid: Average mood, average stress, average energy, and check-ins count.
+  - Radar Chart: Wrapped in `[role="img"][aria-label="Wellness balance radar chart: ..."]` mapping Mood, Energy, and Calmness (`6 - avgStress`).
 
-#### Test Steps & Assertions:
-1. On `/dashboard`, click the **Sign out** button.
-2. **Assertion:** Router redirects back to `/auth/login`.
-3. Try navigating back to `/dashboard` using the browser's back history.
-   - **Assertion:** The session is cleared, and middleware redirects the page to `/auth/login`.
+#### AI Narrative Engine & Lifecycle Specs:
+The backend fetches check-ins, triggers, and reflection journals to build the LLM payload.
+1. **PII Sanitisation:** Before sending data to the OpenAI API:
+   - Email addresses and phone numbers in reflection text are replaced with `[contact]`.
+   - Excerpts are limited to 3 snippets, and each is truncated to 100 characters max (`…` appended).
+   - Curly braces `{}` are removed to prevent prompt injections.
+2. **LLM Execution:** The server calls OpenAI with the configured model (default `gpt-4o-mini`) using `OPENAI_API_KEY`.
+3. **Hard Constraint Guardrails:**
+   - **Word Limit:** The server truncates and appends `…` if the narrative exceeds 120 words.
+   - **Latency Timeout:** Enforces a 5-second hard timeout. If exceeded, the engine cancels the call and triggers the fallback.
+4. **Caching Rule:**
+   - *Current (Open) Week:* Evaluated on-the-fly on every request (narrative is not cached).
+   - *Closed Week:* The generated narrative is permanently saved to the `weekly_summaries` table to prevent duplicate LLM calls.
+5. **Fallback:** If OpenAI throws an error or times out, the API gracefully falls back to the deterministic rule-based generator, returning `narrativeSource: 'rule-based'` in the JSON response.
 
 ---
 
-## 4. Rule-Based Engine Verification Specs
+## 4. Automated Testing Suite
 
-Automated verification agents should confirm the logic inside the local insight and recommendation engines:
+MindTrack uses **Vitest** to run unit and integration tests. Run the test suite using:
+```bash
+npm run test
+```
 
-### 1. Insight Engine Logic (`src/lib/engines/insight.ts`)
-Verify the output string changes based on context:
-* **Recurring Stress Trigger:** If the current check-in includes a trigger that has been logged 3 or more times recently:
-  - *Expected Insight:* `"You've reported [trigger] as a recurring source of stress [count] times recently."`
-* **Elevated Stress Pattern:** If average stress of the last 4 check-ins is > 3.5:
-  - *Expected Insight:* `"Your stress levels have been elevated over the last few days. Small breaks can make a big difference."`
-* **Declining Energy Pattern:** If average energy of the last 4 check-ins is < 2.5:
-  - *Expected Insight:* `"Your energy levels have been consistently low recently. Rest and recovery may be needed."`
-* **Gradual Mood Decline:** If mood is monotonically decreasing over the last 4 check-ins:
-  - *Expected Insight:* `"Your mood has been gradually declining. Consider taking a short break to recharge."`
-* **High Stress + Low Energy Combination:** If current stress > 3 and current energy < 3:
-  - *Expected Insight:* `"High stress combined with low energy can make studying feel overwhelming. Small, focused sessions work better now."`
-
-### 2. Recommendation Engine Logic (`src/lib/engines/recommendation.ts`)
-Verify action outputs and anti-repetition rules:
-* **Trigger Specifics:** If trigger is `Exam Anxiety`, recommendation should be drawn from the exam anxiety pool (e.g., breathing exercises or reviewing known subjects).
-* **Anti-Repetition:** If a recommendation is inside the last 3 wellness actions logged, the engine must filter it out (unless all candidates have been exhausted) and pick an alternate recommendation.
-* **Calming Prioritization:** If stress level is high ($\ge 4$), the engine must prioritize recommendations containing calming keywords (`breath`, `walk`, `rest`, or `break`).
+### Test Coverage Map
+- **Insight Engine Unit Tests (`src/lib/engines/__tests__/insight.test.ts`):** Verifies trigger-based insights, elevated stress alerts, low energy patterns, declining mood trends, and fallback defaults.
+- **Recommendation Engine Unit Tests (`src/lib/engines/__tests__/recommendation.test.ts`):** Verifies trigger mappings, motivating defaults, anti-repetition filter limits, and calming keyword prioritization.
+- **Check-in API Handler Tests (`src/app/api/checkin/__tests__/route.test.ts`):** Mocks Supabase and tests authorization (401), invalid ranges (400 for out-of-bounds metrics, length limits), and successful insertion (200).
+- **Dashboard API Handler Tests (`src/app/api/dashboard/__tests__/route.test.ts`):** Verifies streak calculations, data structuring, and history limits.
+- **Weekly Summary API Handler Tests (`src/app/api/weekly-summary/__tests__/route.test.ts`):** Mocks the OpenAI client to verify the AI summary workflow, database caching checks, and the rule-based fallback mechanism when the AI fails.

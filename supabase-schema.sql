@@ -56,3 +56,19 @@ create policy "Users own wellness_actions" on wellness_actions
 create index if not exists check_ins_user_id_created_at on check_ins(user_id, created_at desc);
 create index if not exists triggers_check_in_id on triggers(check_in_id);
 create index if not exists wellness_actions_user_id on wellness_actions(user_id, generated_at desc);
+
+-- Weekly narrative cache
+create table if not exists weekly_summaries (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  week_start   date not null,
+  narrative    text not null,
+  source       text not null check (source in ('ai', 'rule-based')),
+  generated_at timestamptz not null default now(),
+  unique (user_id, week_start)
+);
+
+alter table weekly_summaries enable row level security;
+
+create policy "Users own weekly_summaries" on weekly_summaries
+  for all using (auth.uid() = user_id);

@@ -33,77 +33,97 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <div className="w-full max-w-md">
+    <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-4 shadow-lg">
-            <span className="text-2xl">🧘</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/50 backdrop-blur-xl border border-white/60 mb-4 shadow-[0_8px_30px_rgb(59,130,246,0.1)]">
+            <span className="text-2xl" aria-hidden="true">🧘</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">MindTrack</h1>
-          <p className="text-gray-500 mt-1">Your wellness companion for exam success</p>
+          <h1 className="text-3xl font-bold text-slate-900">MindTrack</h1>
+          <p className="text-slate-500 mt-1">Your wellness companion for exam success</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Create your account</h2>
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(59,130,246,0.1)] p-8 border border-white/60">
+          <h2 className="text-xl font-semibold text-slate-800 mb-6">Create your account</h2>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"
+            >
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4" noValidate>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label htmlFor="signup-name" className="block text-sm font-medium text-slate-700 mb-1">
+                Name
+              </label>
               <input
+                id="signup-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-gray-900"
+                aria-invalid={error ? 'true' : undefined}
+                className="w-full px-4 py-2.5 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-slate-900 shadow-sm"
                 placeholder="Your name"
+                autoComplete="name"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="signup-email" className="block text-sm font-medium text-slate-700 mb-1">
+                Email
+              </label>
               <input
+                id="signup-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-gray-900"
+                aria-invalid={error ? 'true' : undefined}
+                aria-describedby={error ? 'signup-error' : undefined}
+                className="w-full px-4 py-2.5 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-slate-900 shadow-sm"
                 placeholder="you@example.com"
+                autoComplete="email"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label htmlFor="signup-password" className="block text-sm font-medium text-slate-700 mb-1">
+                Password
+              </label>
               <input
+                id="signup-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-gray-900"
+                aria-describedby="signup-password-hint"
+                className="w-full px-4 py-2.5 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-slate-900 shadow-sm"
                 placeholder="At least 6 characters"
+                autoComplete="new-password"
               />
+              <p id="signup-password-hint" className="text-xs text-slate-400 mt-1">Minimum 6 characters</p>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:from-indigo-600 hover:to-purple-700 transition disabled:opacity-60 disabled:cursor-not-allowed shadow-md"
+              aria-busy={loading}
+              className="w-full py-3 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-blue-500/30"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p className="text-center text-sm text-slate-500 mt-6">
             Already have an account?{' '}
-            <Link href="/auth/login" className="text-indigo-600 font-medium hover:text-indigo-700">
+            <Link href="/auth/login" className="text-blue-500 font-medium hover:text-blue-600">
               Sign in
             </Link>
           </p>
         </div>
       </div>
-    </div>
   )
 }
