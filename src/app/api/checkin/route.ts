@@ -1,0 +1,84 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { generateInsight } from '@/lib/engines/insight'
+import { generateRecommendation } from '@/lib/engines/recommendation'
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json()
+  const { mood, stressLevel, energyLevel, triggers, reflection } = body
+
+  if (!mood || !stressLevel || !energyLevel) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  // Create check-in
+  const { data: checkIn, error: checkInError } = await supabase
+    .from('check_ins')
+    .insert({ user_id: user.id, mood, stress_level: stressLevel, energy_level: energyLevel })
+    .select()
+    .single()
+
+  if (checkInError) return NextResponse.json({ error: checkInError.message }, { status: 500 })
+
+  // Save triggers
+  if (triggers?.length > 0) {
+    await supabase.from('triggers').insert(
+      triggers.map((t: string) => ({ check_in_id: checkIn.id, trigger_name: t }))
+    )
+  }
+
+  // Save reflection
+  if (reflection?.trim()) {
+    await supabase.from('reflections').insert({ check_in_id: checkIn.id, content: reflection.trim() })
+  }
+
+  // Fetch history for engine inputs
+  const { data: historyCheckIns } = await supabase
+    .from('check_ins')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(14)
+
+  const { data: historyTriggers } = await supabase
+    .from('triggers')
+    .select('*')
+    .in('check_in_id', (historyCheckIns || []).map((c: { id: string }) => c.id))
+
+  const { data: recentActions } = await supabase
+    .from('wellness_actions')
+    .select('recommendation')
+    .eq('user_id', user.id)
+    .order('generated_at', { ascending: false })
+    .limit(3)
+
+  const insight = generateInsight({
+    current: { mood, stress: stressLevel, energy: energyLevel, triggers: triggers || [] },
+    history: {
+      checkIns: historyCheckIns || [],
+      triggers: historyTriggers || [],
+    },
+  })
+
+  const recommendation = generateRecommendation({
+    mood,
+    stress: stressLevel,
+    energy: energyLevel,
+    triggers: triggers || [],
+    recentRecommendations: (recentActions || []).map((a: { recommendation: string }) => a.recommendation),
+  })
+
+  // Save wellness action
+  const { data: action } = await supabase
+    .from('wellness_actions')
+    .insert({ user_id: user.id, insight, recommendation })
+    .select()
+    .single()
+
+  return NextResponse.json({ checkInId: checkIn.id, insight, recommendation, actionId: action?.id })
+}
