@@ -27,10 +27,9 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .gte('created_at', since)
       .order('created_at', { ascending: true }),
-    supabase
-      .from('triggers')
-      .select('trigger_name, check_in_id')
-      .in('check_in_id', ids),
+    ids.length > 0
+      ? supabase.from('triggers').select('trigger_name, check_in_id').in('check_in_id', ids)
+      : Promise.resolve({ data: [] }),
     supabase
       .from('wellness_actions')
       .select('*')
